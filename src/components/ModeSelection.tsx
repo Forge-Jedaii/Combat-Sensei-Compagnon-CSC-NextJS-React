@@ -1,12 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 interface ModeSelectionProps {
   onSelect: (mode: string) => void;
 }
 
 export default function ModeSelection({ onSelect }: ModeSelectionProps) {
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  const [activeRule, setActiveRule] = useState<"csc" | "fj1vs1">("csc");
+
   const modes = [
     { 
       key: "duel", 
@@ -52,7 +55,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
       <header className="space-y-4">
         <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl mb-3 sm:mb-4 animate-pulse">⚔️</div>
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-cyber-blue text-glow font-orbitron">
-           Forge Je&apos;daii
+          Forge Je&apos;daii
         </h1>
         <p className="text-gray-300 text-lg sm:text-xl font-orbitron">
           Combat Sensei Compagnon
@@ -98,7 +101,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Règlements Officiels */}
             <div 
-              onClick={() => onSelect("officialRules")}
+              onClick={() => setShowRulesModal(true)}
               className="group relative overflow-hidden bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-400 border-2 border-cyan-400 hover:border-cyan-300 px-6 py-6 rounded-2xl font-bold cursor-pointer transition-all duration-300 box-glow hover:scale-105 hover:box-glow-strong active:scale-95 min-h-[140px] flex flex-col items-center justify-center text-center"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -138,6 +141,75 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
           </div>
         </section>
       </section>
+
+      {/* === MODALE RÈGLEMENTS === */}
+      {showRulesModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border-2 border-cyber-blue rounded-2xl shadow-xl max-w-2xl w-full p-6 relative">
+            {/* Bouton fermer */}
+            <button
+              onClick={() => setShowRulesModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              ✖
+            </button>
+
+            {/* Tabs stylés */}
+            <div className="flex space-x-4 mb-6 border-b border-cyber-blue/40">
+              <button
+                onClick={() => setActiveRule("csc")}
+                className={`relative px-4 py-2 font-bold font-orbitron transition-all ${
+                  activeRule === "csc"
+                    ? "text-cyan-400"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                Règlements du CSC
+                {activeRule === "csc" && (
+                  <span className="absolute left-0 -bottom-1 w-full h-[3px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] rounded-full"></span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveRule("fj1vs1")}
+                className={`relative px-4 py-2 font-bold font-orbitron transition-all ${
+                  activeRule === "fj1vs1"
+                    ? "text-cyan-400"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+              >
+                Règlements officiel FJ 1vs1
+                {activeRule === "fj1vs1" && (
+                  <span className="absolute left-0 -bottom-1 w-full h-[3px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] rounded-full"></span>
+                )}
+              </button>
+            </div>
+
+            {/* Contenu selon sélection */}
+            <div className="text-gray-300 font-orbitron space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              {activeRule === "csc" && (
+                <div>
+                  <h2 className="text-2xl text-cyber-blue mb-4 font-bold">
+                    📜 Règlements du CSC
+                  </h2>
+                  <p>
+                    👉 A venir
+                  </p>
+                </div>
+              )}
+              {activeRule === "fj1vs1" && (
+                <div>
+                  <h2 className="text-2xl text-cyber-blue mb-4 font-bold">
+                    🏆 Règlements officiel FJ 1vs1
+                  </h2>
+                  <p>
+                    A venir
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

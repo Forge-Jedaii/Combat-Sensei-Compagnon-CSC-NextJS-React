@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Timer from "../ui/Timer";
 import UndoHit from "../ui/UndoHit";
+import { toPng } from "html-to-image";
 
 type CombatAreaProps = {
   player1: string;
@@ -24,18 +25,14 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
   const [hitHistory, setHitHistory] = useState<LastHit[]>([]);
 
   // Gestion timer
-  const [paused, setPaused] = useState(true); // <-- start paused
-
+  const [paused, setPaused] = useState(true);
   const [resetKey, setResetKey] = useState(0);
 
   const handleHit = (target: "left" | "right") => {
     if (winner) return;
 
     setHitHistory((prev) => {
-      const newHistory = [
-        ...prev,
-        { target, previousHp1: hp1, previousHp2: hp2 },
-      ];
+      const newHistory = [...prev, { target, previousHp1: hp1, previousHp2: hp2 }];
       return newHistory.slice(-2);
     });
 
@@ -67,17 +64,17 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
     <div className="flex flex-col h-[100vh] relative bg-black/10">
       {/* HUD fixe en haut */}
       <div className="fixed top-0 left-0 w-full flex flex-col gap-2 py-2 px-4 bg-black/30 backdrop-blur-md z-50 border-b border-cyber-blue/30">
-        {/* Timer et boutons sur la même ligne */}
+        {/* Timer et boutons */}
         <div className="flex justify-center items-center gap-3">
           <div className="text-cyber-blue font-bold text-xl sm:text-2xl font-mono text-glow px-4 py-1 bg-black/40 border border-cyber-blue/40 rounded">
             {duration > 0 ? (
               <Timer
-  key={resetKey}
-  duration={duration}
-  paused={paused} // démarrage manuel
-  onEnd={() => setWinner("⏳ Temps écoulé")}
-  compact
-/>
+                key={resetKey}
+                duration={duration}
+                paused={paused}
+                onEnd={() => setWinner("⏳ Temps écoulé")}
+                compact
+              />
             ) : (
               "∞"
             )}
@@ -106,11 +103,9 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
           </button>
         </div>
 
-        {/* Barres de vie des joueurs */}
+        {/* Barres de vie */}
         <div className="flex justify-between items-center gap-4 mt-2">
-          {/* Joueur 1 */}
           <div className="flex-1 flex flex-col items-start">
-            
             <div className="w-full h-3 bg-black/40 border border-cyber-blue rounded-full overflow-hidden">
               <div
                 style={{ width: `${(hp1 / 10) * 100}%` }}
@@ -118,10 +113,7 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
               />
             </div>
           </div>
-
-          {/* Joueur 2 */}
           <div className="flex-1 flex flex-col items-end">
-            
             <div className="w-full h-3 bg-black/40 border border-cyber-blue rounded-full overflow-hidden">
               <div
                 style={{ width: `${(hp2 / 10) * 100}%` }}
@@ -134,7 +126,6 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
 
       {/* Zones de combat */}
       <div className="flex flex-1 pt-28">
-        {/* Zone gauche */}
         <div
           onClick={() => handleHit("left")}
           className="flex-1 flex flex-col justify-center items-center cursor-pointer bg-green-zone border-r-2 border-cyber-blue active:scale-95 transition-all duration-200"
@@ -143,16 +134,10 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
             <p className="text-cyber-blue font-bold text-lg sm:text-2xl md:text-3xl text-glow truncate max-w-[180px] sm:max-w-[220px]">
               {player1}
             </p>
-            <p className="text-white text-6xl sm:text-7xl md:text-8xl font-extrabold text-glow">
-              {hp1}
-            </p>
-            <p className="text-xs sm:text-sm text-cyber-blue mt-2 animate-pulse text-glow-sm">
-              Tapez pour attaquer !
-            </p>
+            <p className="text-white text-6xl sm:text-7xl md:text-8xl font-extrabold text-glow">{hp1}</p>
           </div>
         </div>
 
-        {/* Zone droite */}
         <div
           onClick={() => handleHit("right")}
           className="flex-1 flex flex-col justify-center items-center cursor-pointer bg-gold-zone border-l-2 border-cyber-blue active:scale-95 transition-all duration-200"
@@ -161,42 +146,83 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
             <p className="text-cyber-blue font-bold text-lg sm:text-2xl md:text-3xl text-glow truncate max-w-[180px] sm:max-w-[220px]">
               {player2}
             </p>
-            <p className="text-white text-6xl sm:text-7xl md:text-8xl font-extrabold text-glow">
-              {hp2}
-            </p>
-            <p className="text-xs sm:text-sm text-cyber-blue mt-2 animate-pulse text-glow-sm">
-              Tapez pour attaquer !
-            </p>
+            <p className="text-white text-6xl sm:text-7xl md:text-8xl font-extrabold text-glow">{hp2}</p>
           </div>
         </div>
       </div>
 
-      {/* Bouton d'annulation en bas */}
+      {/* Undo */}
       <div className="flex justify-center p-3 sm:p-4 bg-black/20 border-t border-cyber-blue/30">
         <UndoHit
           onUndo={handleUndo}
           disabled={hitHistory.length === 0 || !!winner}
-          text={`↻ Annuler la dernière touche ${
-            hitHistory.length > 0 ? `(${hitHistory.length}/2)` : ""
-          }`}
+          text={`↻ Annuler la dernière touche ${hitHistory.length > 0 ? `(${hitHistory.length}/2)` : ""}`}
         />
       </div>
 
-      {/* Modal de fin */}
+      {/* Modal fin combat */}
       {winner && (
         <div className="fixed inset-0 flex justify-center items-center bg-black/80 backdrop-blur-lg p-4 z-50">
-          <div className="bg-gradient-to-br from-cyber-dark via-cyber-purple to-cyber-navy p-4 sm:p-6 rounded-xl border-2 border-cyber-blue text-center max-w-sm w-full mx-4">
-            <p className="text-cyber-blue text-lg sm:text-xl font-bold mb-4 text-glow">
-              {winner === "⏳ Temps écoulé"
-                ? winner
-                : `🏆 Victoire de ${winner} !`}
-            </p>
-            <button
-              onClick={onEnd}
-              className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-cyber-blue/20 border border-cyber-blue text-cyber-blue rounded-lg hover:scale-105 transition-all font-bold text-sm sm:text-base"
-            >
-              Continuer
-            </button>
+          <div className="bg-gradient-to-br from-cyber-dark via-cyber-purple to-cyber-navy p-6 rounded-xl border-2 border-cyber-blue text-center max-w-md w-full mx-4 shadow-xl">
+            {/* Résultats */}
+            <div id="result-card" className="mb-6">
+              <h2 className="text-cyber-blue text-2xl font-bold mb-3">⚔️ Résultat du combat</h2>
+              <p className="text-white">{player1} : {hp1} PV</p>
+              <p className="text-white">{player2} : {hp2} PV</p>
+              <p className="text-cyber-blue font-bold mt-3">
+                {winner === "⏳ Temps écoulé" ? winner : `🏆 Victoire de ${winner} !`}
+              </p>
+            </div>
+
+            {/* Boutons de partage */}
+            <div className="flex flex-col gap-3">
+              {/* PNG mais ouverture manuelle */}
+              <button
+                onClick={async () => {
+                  const card = document.getElementById("result-card");
+                  if (card) {
+                    const dataUrl = await toPng(card);
+                    const newWindow = window.open();
+                    if (newWindow) {
+                      newWindow.document.write(`<img src="${dataUrl}" style="width:100%;height:auto;" />`);
+                    }
+                  }
+                }}
+                className="w-full bg-cyan-600 px-4 py-2 rounded-lg font-bold hover:bg-cyan-500 transition"
+              >
+                📸 Voir en PNG
+              </button>
+
+              {/* WhatsApp */}
+              <button
+                onClick={() => {
+                  const text = `⚔️ Résultat du combat\n${player1}: ${hp1} PV\n${player2}: ${hp2} PV\n🏆 Vainqueur : ${winner}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+                }}
+                className="w-full bg-green-600 px-4 py-2 rounded-lg font-bold hover:bg-green-500 transition"
+              >
+                📱 Partager sur WhatsApp
+              </button>
+
+              {/* Discord */}
+              <button
+                onClick={async () => {
+                  const text = `⚔️ Résultat du combat\n${player1}: ${hp1} PV\n${player2}: ${hp2} PV\n🏆 Vainqueur : ${winner}`;
+                  await navigator.clipboard.writeText(text);
+                  alert("✅ Résultat copié ! Collez-le dans Discord 🚀");
+                }}
+                className="w-full bg-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-indigo-500 transition"
+              >
+                🎮 Copier pour Discord
+              </button>
+
+              <button
+                onClick={onEnd}
+                className="w-full bg-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-500 transition"
+              >
+                ❌ Fermer
+              </button>
+            </div>
           </div>
         </div>
       )}
