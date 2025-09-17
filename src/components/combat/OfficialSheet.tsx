@@ -2,11 +2,39 @@
 
 import React, { useState, useEffect } from "react";
 
+interface CombatData {
+  event: string;
+  duration: string;
+  actualDuration: string;
+  arbitre: string;
+  combatId: string;
+  fighter1: {
+    name: string;
+    finalHP: number;
+    damage: number;
+    faults: number;
+  };
+  fighter2: {
+    name: string;
+    finalHP: number;
+    damage: number;
+    faults: number;
+  };
+  winner: string;
+  result: string;
+}
+
+interface OfficialSheetProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  combatData?: CombatData;
+}
+
 export default function OfficialSheet({ 
   isOpen = false, 
   onClose = () => {}, 
-  combatData = null 
-}) {
+  combatData 
+}: OfficialSheetProps) {
   const [currentDate, setCurrentDate] = useState("");
   const [currentTime, setCurrentTime] = useState("");
   const [verificationHash, setVerificationHash] = useState("");
