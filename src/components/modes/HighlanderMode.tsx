@@ -2,169 +2,263 @@
 
 import React, { useState } from "react";
 import Button from "../ui/Button";
+import CombatArea from "../combat/CombatArea";
 
-interface Duel {
-  opponent: string;
-  result?: string; // "Highlander" ou "Adversaire"
+interface HighlanderData {
+  championName: string;
+  championHP: number;
+  healingAmount: number;
+  opponents: string[];
+  currentOpponentIndex: number;
+  defeatedOpponents: string[];
+  timeLimit: number;
+  isActive: boolean;
 }
 
 export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
-  const [highlander, setHighlander] = useState("");
-  const [opponents, setOpponents] = useState<string[]>([]);
-  const [duels, setDuels] = useState<Duel[]>([]);
-  const [started, setStarted] = useState(false);
-  const [currentDuel, setCurrentDuel] = useState(0);
-  const [finished, setFinished] = useState(false);
+  const [step, setStep] = useState<"setup" | "progress" | "combat" | "results">("setup");
+  const [data, setData] = useState<HighlanderData>({
+    championName: "",
+    championHP: 10,
+    healingAmount: 2,
+    opponents: [],
+    currentOpponentIndex: 0,
+    defeatedOpponents: [],
+    timeLimit: 120,
+    isActive: false,
+  });
 
-  const handleStart = () => {
-    if (!highlander.trim() || opponents.length < 1 || opponents.some((o) => !o.trim())) {
-      alert("Veuillez entrer le nom du Highlander et au moins un adversaire !");
+  const [player1HP, setPlayer1HP] = useState(10);
+  const [player2HP, setPlayer2HP] = useState(10);
+  const [player2Name, setPlayer2Name] = useState("");
+
+  const addOpponent = (name: string) => {
+    if (!name.trim() || data.opponents.includes(name) || data.opponents.length >= 8) return;
+    setData(prev => ({ ...prev, opponents: [...prev.opponents, name] }));
+  };
+
+  const removeOpponent = (name: string) => {
+    setData(prev => ({ ...prev, opponents: prev.opponents.filter(op => op !== name) }));
+  };
+
+  const startHighlander = (championName: string, healing: number, timeLimit: number) => {
+    if (data.opponents.length < 2) {
+      alert("⚠️ Il faut au moins 2 adversaires !");
       return;
     }
-    setDuels(opponents.map((op) => ({ opponent: op })));
-    setStarted(true);
-    setCurrentDuel(0);
-    setFinished(false);
+
+    const shuffled = [...data.opponents].sort(() => Math.random() - 0.5);
+
+    setData(prev => ({
+      ...prev,
+      championName: championName || "Champion",
+      healingAmount: healing,
+      timeLimit,
+      championHP: 10,
+      currentOpponentIndex: 0,
+      defeatedOpponents: [],
+      opponents: shuffled,
+      isActive: true,
+    }));
+    setStep("progress");
   };
 
-  const handleResult = (winner: string) => {
-    const updatedDuels = [...duels];
-    updatedDuels[currentDuel].result = winner;
-    setDuels(updatedDuels);
+  const startNextOpponent = () => {
+    if (data.currentOpponentIndex >= data.opponents.length) {
+      setStep("results");
+      return;
+    }
 
-    if (winner !== highlander) {
-      // Highlander éliminé
-      setFinished(true);
-    } else if (currentDuel === duels.length - 1) {
-      // Highlander a survécu à tous
-      setFinished(true);
+    const nextOpponent = data.opponents[data.currentOpponentIndex];
+    setPlayer2Name(nextOpponent);
+    setPlayer1HP(data.championHP);
+    setPlayer2HP(10);
+    setStep("combat");
+  };
+
+  const handleCombatEnd = (winner: string) => {
+    if (winner === data.championName) {
+      // Champion a gagné
+      setData(prev => ({
+        ...prev,
+        championHP: Math.min(prev.championHP + prev.healingAmount, 10),
+        defeatedOpponents: [...prev.defeatedOpponents, data.opponents[data.currentOpponentIndex]],
+        currentOpponentIndex: prev.currentOpponentIndex + 1,
+      }));
+      if (data.currentOpponentIndex + 1 >= data.opponents.length) {
+        setStep("results");
+      } else {
+        setStep("progress");
+      }
     } else {
-      // Passer au duel suivant
-      setCurrentDuel(currentDuel + 1);
+      // Champion éliminé
+      setData(prev => ({ ...prev, championHP: 0 }));
+      setStep("results");
     }
   };
 
-  const handleReset = () => {
-    setHighlander("");
-    setOpponents([]);
-    setDuels([]);
-    setStarted(false);
-    setCurrentDuel(0);
-    setFinished(false);
+  const resetHighlander = () => {
+    setData({
+      championName: "",
+      championHP: 10,
+      healingAmount: 2,
+      opponents: [],
+      currentOpponentIndex: 0,
+      defeatedOpponents: [],
+      timeLimit: 120,
+      isActive: false,
+    });
+    setStep("setup");
   };
 
   return (
-    <div className="bg-black/40 border border-cyber-blue/40 rounded-xl p-6 box-glow max-w-3xl mx-auto">
-      {!started ? (
-        <>
-          <h2 className="text-cyber-blue text-xl sm:text-2xl font-bold text-glow mb-6">
-            🗡️ Configuration Highlander
-          </h2>
-
-          {/* Input Highlander */}
-          <div className="mb-6">
-            <input
-              type="text"
-              placeholder="Nom du Highlander"
-              value={highlander}
-              onChange={(e) => setHighlander(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-cyber-blue/40 bg-black/60 text-white placeholder-gray-500 focus:outline-none focus:border-cyber-blue"
-            />
-          </div>
-
-          {/* Opponents */}
-          <div className="mb-6">
-            <label className="block mb-2 text-gray-300">Adversaires :</label>
-            {opponents.map((op, i) => (
+    <div className="max-w-3xl mx-auto p-6 bg-black/40 border border-red-400/40 rounded-xl box-glow">
+      {step === "setup" && (
+        <div>
+          <h2 className="text-red-400 text-2xl font-bold text-glow mb-6 text-center">🔥 Configuration Highlander 🔥</h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-red-400 font-bold mb-2">👑 Nom du Champion :</label>
               <input
-                key={i}
                 type="text"
-                placeholder={`Adversaire ${i + 1}`}
-                value={op}
-                onChange={(e) => {
-                  const newOpponents = [...opponents];
-                  newOpponents[i] = e.target.value;
-                  setOpponents(newOpponents);
-                }}
-                className="w-full mb-2 px-3 py-2 rounded-lg border border-cyber-blue/40 bg-black/60 text-white placeholder-gray-500 focus:outline-none focus:border-cyber-blue"
+                value={data.championName}
+                onChange={e => setData(prev => ({ ...prev, championName: e.target.value }))}
+                className="w-full p-2 bg-black/70 border-2 border-red-400 rounded-lg text-white"
               />
-            ))}
-            <Button onClick={() => setOpponents([...opponents, ""])}>➕ Ajouter un adversaire</Button>
-          </div>
-
-          {/* Start */}
-          <div className="text-center flex space-between items-center justify-center gap-4">
-            <Button onClick={handleStart}>🚀 Lancer le Highlander</Button>
-            <button
-          onClick={onBack}
-          className="bg-gradient-to-r from-[#ff275b] to-[#b300ff] hover:from-[#ff4d77] hover:to-[#c233ff]
-                     text-white px-8 py-3 rounded-lg font-bold transition-all duration-300 
-                     border border-white/10 hover:scale-105 shadow-[0_0_18px_rgba(255,39,91,0.35)]"
-        >
-          ← Retour
-        </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <h2 className="text-cyber-blue text-xl sm:text-2xl font-bold text-glow mb-6">
-            🗡️ Highlander en cours
-          </h2>
-
-          {!finished ? (
-            <div className="mb-6">
-              <p className="text-white text-lg mb-4">
-                <span className="font-bold text-cyber-blue">{highlander}</span> affronte{" "}
-                <span className="font-bold">{duels[currentDuel].opponent}</span>
-              </p>
-              <div className="flex justify-center gap-4">
-                <Button onClick={() => handleResult(highlander)}>✅ {highlander} gagne</Button>
-                <Button onClick={() => handleResult(duels[currentDuel].opponent)}>
-                  ❌ {duels[currentDuel].opponent} gagne
-                </Button>
+            </div>
+            <div>
+              <label className="block text-red-400 font-bold mb-2">💚 PV récupérés entre combats :</label>
+              <select
+                value={data.healingAmount}
+                onChange={e => setData(prev => ({ ...prev, healingAmount: parseInt(e.target.value) }))}
+                className="w-full p-2 bg-black/70 border-2 border-red-400 rounded-lg text-white"
+              >
+                <option value={0}>☠️ Mode Hardcore (0 PV)</option>
+                <option value={2}>⚔️ Mode Normal (2 PV)</option>
+                <option value={3}>🛡️ Mode Facile (3 PV)</option>
+                <option value={5}>💪 Mode Entraînement (5 PV)</option>
+                <option value={10}>🌟 Mode Récupération Complète (10 PV)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-red-400 font-bold mb-2">Durée par combat :</label>
+              <select
+                value={data.timeLimit}
+                onChange={e => setData(prev => ({ ...prev, timeLimit: parseInt(e.target.value) }))}
+                className="w-full p-2 bg-black/70 border-2 border-red-400 rounded-lg text-white"
+              >
+                <option value={0}>⏳ Pas de limite</option>
+                <option value={60}>⏱️ 1 minute</option>
+                <option value={90}>⏱️ 1 minute 30</option>
+                <option value={120}>⏱️ 2 minutes</option>
+                <option value={180}>⏱️ 3 minutes</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-red-400 font-bold mb-2">⚔️ Adversaires :</label>
+              <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
+                {data.opponents.map((op, i) => (
+                  <div key={i} className="flex justify-between items-center bg-black/50 border border-red-400 rounded-lg px-3 py-2">
+                    <span className="text-red-400 font-bold">{op}</span>
+                    <button onClick={() => removeOpponent(op)} className="text-red-400 hover:text-red-300 font-bold">✕</button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nom de l'adversaire..."
+                  className="flex-1 p-2 bg-black/70 border-2 border-red-400 rounded-lg text-white"
+                  id="newOpponentInput"
+                />
+                <Button onClick={() => {
+                  const input = document.getElementById("newOpponentInput") as HTMLInputElement;
+                  addOpponent(input.value);
+                  input.value = "";
+                }}>+ Ajouter</Button>
               </div>
             </div>
+          </div>
+          <div className="flex gap-4 justify-center mt-6">
+            <Button onClick={() => startHighlander(data.championName, data.healingAmount, data.timeLimit)}>🔥 Commencer l'Épreuve</Button>
+            <Button onClick={onBack}>← Retour</Button>
+          </div>
+        </div>
+      )}
+
+      {step === "progress" && (
+        <div>
+          <h2 className="text-red-400 text-2xl font-bold text-glow mb-6 text-center">🔥 Highlander - Progression 🔥</h2>
+          <div className="bg-black/80 rounded-xl p-4 mb-6 border-2 border-red-400 box-glow text-center">
+            <div className="text-red-400 font-bold mb-2">👑 CHAMPION</div>
+            <div className="text-white font-bold text-xl">{data.championName} - {data.championHP} PV</div>
+            <div className="text-cyber-blue font-bold mt-2">⚔️ {data.defeatedOpponents.length}/{data.opponents.length} adversaires vaincus</div>
+          </div>
+          <div className="bg-black/80 rounded-xl p-4 mb-6 border-2 border-red-400 box-glow">
+            <div className="text-red-400 font-bold mb-4 text-center">⚔️ ADVERSAIRES</div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {data.opponents.map((op, i) => {
+                const status = data.defeatedOpponents.includes(op)
+                  ? "💀 Vaincu"
+                  : i === data.currentOpponentIndex
+                    ? "⚔️ Prochain adversaire"
+                    : "⏳ En attente";
+                const statusColor = data.defeatedOpponents.includes(op)
+                  ? "text-gray-500 border-gray-500"
+                  : i === data.currentOpponentIndex
+                    ? "text-orange-400 border-orange-400"
+                    : "text-cyan-400 border-cyan-400";
+                return (
+                  <div key={i} className={`flex justify-between items-center bg-black/60 border-2 ${statusColor} rounded-lg px-3 py-2`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">{status.split(" ")[0]}</span>
+                      <span className="font-bold">{op}</span>
+                    </div>
+                    <span className="text-sm">{status.split(" ").slice(1).join(" ")}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={startNextOpponent}>⚔️ Prochain Combat</Button>
+            <Button onClick={onBack}>← Abandonner</Button>
+          </div>
+        </div>
+      )}
+
+      {step === "combat" && (
+        <CombatArea
+          player1Name={data.championName}
+          player1HP={player1HP}
+          onPlayer1HPChange={setPlayer1HP}
+          player2Name={player2Name}
+          player2HP={player2HP}
+          onPlayer2HPChange={setPlayer2HP}
+          timeLimit={data.timeLimit}
+          onCombatEnd={handleCombatEnd}
+        />
+      )}
+
+      {step === "results" && (
+        <div className="text-center">
+          <h2 className="text-red-400 text-2xl font-bold text-glow mb-6">🔥 Résultat Highlander 🔥</h2>
+          {data.championHP > 0 ? (
+            <div className="text-cyber-blue font-bold text-xl mb-4">
+              🏆 {data.championName} a survécu à tous les adversaires !
+            </div>
           ) : (
-            <div className="mb-6 text-center">
-              {duels[currentDuel].result !== highlander ? (
-                <h3 className="text-red-500 text-xl font-bold">
-                  ❌ {highlander} a été éliminé par {duels[currentDuel].opponent}
-                </h3>
-              ) : (
-                <h3 className="text-cyber-blue text-2xl font-bold">
-                  🏆 {highlander} a survécu à tous les adversaires !
-                </h3>
-              )}
+            <div className="text-red-500 font-bold text-xl mb-4">
+              ❌ {data.championName} a été éliminé par {data.opponents[data.currentOpponentIndex]}
             </div>
           )}
-
-          {/* Historique */}
-          <div className="mb-6">
-            <h3 className="text-cyber-blue font-bold mb-3">📜 Résultats des duels :</h3>
-            <ul className="space-y-2">
-              {duels.map((d, i) => (
-                <li key={i} className="text-white">
-                  {highlander} vs {d.opponent} →{" "}
-                  {d.result ? (
-                    <span className="text-cyber-blue font-bold">{d.result}</span>
-                  ) : (
-                    <span className="text-gray-400 italic">En attente</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+          <div className="flex gap-4 justify-center mb-4">
+            <Button onClick={() => window.alert("Partager sur WhatsApp")}>📱 WhatsApp</Button>
+            <Button onClick={() => window.alert("Partager sur Telegram")}>✈️ Telegram</Button>
+            <Button onClick={() => window.alert("Partager sur Discord")}>🎮 Discord</Button>
           </div>
-
-          {/* Reset */}
-          <div className="text-center">
-            <Button
-              onClick={handleReset}
-              className="bg-red-600/60 border-red-400 hover:scale-105"
-            >
-              ❌ Réinitialiser le Highlander
-            </Button>
-          </div>
-        </>
+          <Button onClick={resetHighlander}>← Nouveau Défi</Button>
+        </div>
       )}
     </div>
   );

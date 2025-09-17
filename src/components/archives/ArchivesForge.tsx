@@ -11,7 +11,7 @@ export default function ArchivesForge({ onBack }: { onBack?: () => void }) {
     {
       id: "classements",
       title: "Classements",
-      subtitle: "Hall of Fame",
+      subtitle: "Panthéon des héros",
       icon: "🏆",
       color: "from-[#1a1f3b] to-[#12152b]",
       borderColor: "border-[#FFD54F]/40",
@@ -20,7 +20,7 @@ export default function ArchivesForge({ onBack }: { onBack?: () => void }) {
     {
       id: "profils",
       title: "Profils",
-      subtitle: "Je'daii registry",
+      subtitle: "Registre Je'daii",
       icon: "👤",
       color: "from-[#173f3f] to-[#0f2b2b]",
       borderColor: "border-[#4DD0E1]/40",
