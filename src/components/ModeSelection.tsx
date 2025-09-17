@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import OfficialRules from "./regulations/OfficialRules";
+import FJRules from "./regulations/OfficialsFJ1vs1";
 
 interface ModeSelectionProps {
   onSelect: (mode: string) => void;
@@ -43,11 +45,13 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
     },
     { 
       key: "battleRoyale", 
-      label: "👥 Battle Royale",
+      label: "💥 Battle Royale",
       subtitle: "Chaos Total",
       className: "group relative text-glow overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/20 text-purple-400 border-2 border-purple-400 hover:border-purple-300 px-6 py-6 rounded-2xl font-bold cursor-pointer transition-all duration-300 box-glow hover:scale-105 hover:box-glow-strong active:scale-95"
     },
   ];
+
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen text-center px-6 space-y-12">
@@ -62,7 +66,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
         </p>
       </header>
 
-      {/* Sélection des modes */}
+      {/* SÃ©lection des modes */}
       <section className="max-w-5xl w-full">
         <h2 className="text-cyber-blue text-glow text-2xl sm:text-3xl font-bold mb-8 font-orbitron">
           🎮 MODES DE COMBAT
@@ -99,7 +103,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
           <p className="text-gray-400 mb-8 font-orbitron">Règlements, statistiques et archives</p>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {/* Règlements Officiels */}
+            {/* RÃ¨glements Officiels */}
             <div 
               onClick={() => setShowRulesModal(true)}
               className="group relative overflow-hidden bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-400 border-2 border-cyan-400 hover:border-cyan-300 px-6 py-6 rounded-2xl font-bold cursor-pointer transition-all duration-300 box-glow hover:scale-105 hover:box-glow-strong active:scale-95 min-h-[140px] flex flex-col items-center justify-center text-center"
@@ -142,68 +146,65 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
         </section>
       </section>
 
-      {/* === MODALE RÈGLEMENTS === */}
+      {/* === MODALE RÃˆGLEMENTS === */}
       {showRulesModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 border-2 border-cyber-blue rounded-2xl shadow-xl max-w-2xl w-full p-6 relative">
-            {/* Bouton fermer */}
-            <button
-              onClick={() => setShowRulesModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              ✖
-            </button>
+          <div className="bg-gray-900 border-2 border-cyber-blue rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            {/* Header avec bouton fermer */}
+            <div className="p-6 border-b border-cyber-blue/20">
+              <div className="flex items-center justify-between">
+                <h2 className="text-cyber-blue text-2xl sm:text-3xl font-bold text-glow">
+                  📜 Règlement Officiel
+                </h2>
+                <button
+                  onClick={() => setShowRulesModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors text-2xl"
+                >
+                  ✕
+                </button>
+              </div>
 
-            {/* Tabs stylés */}
-            <div className="flex space-x-4 mb-6 border-b border-cyber-blue/40">
-              <button
-                onClick={() => setActiveRule("csc")}
-                className={`relative px-4 py-2 font-bold font-orbitron transition-all ${
-                  activeRule === "csc"
-                    ? "text-cyan-400"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                Règlements du CSC
-                {activeRule === "csc" && (
-                  <span className="absolute left-0 -bottom-1 w-full h-[3px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] rounded-full"></span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveRule("fj1vs1")}
-                className={`relative px-4 py-2 font-bold font-orbitron transition-all ${
-                  activeRule === "fj1vs1"
-                    ? "text-cyan-400"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-              >
-                Règlements officiel FJ 1vs1
-                {activeRule === "fj1vs1" && (
-                  <span className="absolute left-0 -bottom-1 w-full h-[3px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] rounded-full"></span>
-                )}
-              </button>
+              {/* Tabs stylÃ©s */}
+              <div className="flex space-x-4 mt-4 border-b border-cyber-blue/40">
+                <button
+                  onClick={() => setActiveRule("csc")}
+                  className={`relative px-4 py-2 font-bold font-orbitron transition-all ${
+                    activeRule === "csc"
+                      ? "text-cyan-400"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  Règlements du CSC
+                  {activeRule === "csc" && (
+                    <span className="absolute left-0 -bottom-1 w-full h-[3px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] rounded-full"></span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveRule("fj1vs1")}
+                  className={`relative px-4 py-2 font-bold font-orbitron transition-all ${
+                    activeRule === "fj1vs1"
+                      ? "text-cyan-400"
+                      : "text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  Règlements officiel FJ 1vs1
+                  {activeRule === "fj1vs1" && (
+                    <span className="absolute left-0 -bottom-1 w-full h-[3px] bg-cyan-400 shadow-[0_0_8px_#22d3ee] rounded-full"></span>
+                  )}
+                </button>
+              </div>
             </div>
 
-            {/* Contenu selon sélection */}
-            <div className="text-gray-300 font-orbitron space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+            {/* Contenu scrollable */}
+            <div className="p-6 overflow-y-auto flex-1">
               {activeRule === "csc" && (
-                <div>
-                  <h2 className="text-2xl text-cyber-blue mb-4 font-bold">
-                    📜 Règlements du CSC
-                  </h2>
-                  <p>
-                    👉 A venir
-                  </p>
+                <div className="text-gray-300 font-orbitron">
+                  <OfficialRules embedded={true} />
                 </div>
               )}
               {activeRule === "fj1vs1" && (
-                <div>
-                  <h2 className="text-2xl text-cyber-blue mb-4 font-bold">
-                    🏆 Règlements officiel FJ 1vs1
-                  </h2>
-                  <p>
-                    A venir
-                  </p>
+                <div className="text-gray-300 font-orbitron">
+                  <FJRules embedded={true} />
                 </div>
               )}
             </div>

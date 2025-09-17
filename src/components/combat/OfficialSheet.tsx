@@ -223,7 +223,7 @@ export default function OfficialSheet({
         {/* Signatures */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="border-2 border-black p-4 text-center">
-            <h4 className="font-bold mb-4">SIGNATURE ARBITRE</h4>
+            <h4 className="font-bold mb-4">SIGNATURE ARBITRE PRINCIPAL</h4>
             <div className="border-b-2 border-black h-16 mb-2 flex items-end justify-center">
               <span className="text-2xl font-bold">⚖️</span>
             </div>
