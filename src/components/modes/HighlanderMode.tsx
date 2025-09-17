@@ -180,7 +180,7 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
             </div>
           </div>
           <div className="flex gap-4 justify-center mt-6">
-            <Button onClick={() => startHighlander(data.championName, data.healingAmount, data.timeLimit)}>🔥 Commencer l'Épreuve</Button>
+            <Button onClick={() => startHighlander(data.championName, data.healingAmount, data.timeLimit)}>🔥 Commencer l&apos;Épreuve</Button>
             <Button onClick={onBack}>← Retour</Button>
           </div>
         </div>
@@ -228,17 +228,21 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
       )}
 
       {step === "combat" && (
-        <CombatArea
-          player1Name={data.championName}
-          player1HP={player1HP}
-          onPlayer1HPChange={setPlayer1HP}
-          player2Name={player2Name}
-          player2HP={player2HP}
-          onPlayer2HPChange={setPlayer2HP}
-          timeLimit={data.timeLimit}
-          onCombatEnd={handleCombatEnd}
-        />
-      )}
+  <div className="fixed inset-0 z-50">
+    <CombatArea
+      player1={data.championName}
+      player1HP={player1HP}
+      onPlayer1HPChange={setPlayer1HP}
+      player2={player2Name}
+      player2HP={player2HP}
+      onPlayer2HPChange={setPlayer2HP}
+      duration={data.timeLimit}
+      onEnd={handleCombatEnd}
+      mode="highlander"
+    />
+  </div>
+)}
+
 
       {step === "results" && (
         <div className="text-center">

@@ -9,7 +9,15 @@ type CombatAreaProps = {
   player1: string;
   player2: string;
   duration: number;
-  onEnd: () => void;
+  onEnd: (winner: string) => void
+  mode?: "classic" | "highlander";
+
+  // Props optionnelles pour Highlander
+  player1HP?: number;
+  onPlayer1HPChange?: (hp: number) => void;
+  player2HP?: number;
+  onPlayer2HPChange?: (hp: number) => void;
+  onCombatEnd?: (winner: string) => void;
 };
 
 type LastHit = {
@@ -33,7 +41,7 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
 
     setHitHistory((prev) => {
       const newHistory = [...prev, { target, previousHp1: hp1, previousHp2: hp2 }];
-      return newHistory.slice(-2);
+      return newHistory.slice(-2); // garder uniquement les 2 dernières touches
     });
 
     if (target === "left") {
@@ -57,7 +65,7 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
     setHp1(lastState.previousHp1);
     setHp2(lastState.previousHp2);
     setWinner(null);
-    setHitHistory((prev) => prev.slice(0, -1));
+    setHitHistory((prev) => prev.slice(0, -1)); // retirer seulement la dernière touche
   };
 
   return (
@@ -95,7 +103,7 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
             🔄
           </button>
           <button
-            onClick={onEnd}
+            onClick={() => onEnd("")}
             className="w-10 h-10 flex justify-center items-center bg-cyber-navy/20 border border-cyber-navy text-cyber-navy rounded-full hover:scale-110 transition-all"
             title="Accueil"
           >
@@ -217,7 +225,7 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
               </button>
 
               <button
-                onClick={onEnd}
+                onClick={() => onEnd("")}
                 className="w-full bg-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-500 transition"
               >
                 ❌ Fermer
