@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
 
@@ -31,6 +31,8 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
   const [player1HP, setPlayer1HP] = useState(10);
   const [player2HP, setPlayer2HP] = useState(10);
   const [player2Name, setPlayer2Name] = useState("");
+  const [nextChampionHP, setNextChampionHP] = useState<number | null>(null);
+  const [isStartingHighlander, setIsStartingHighlander] = useState(false);
 
   const addOpponent = (name: string) => {
     if (!name.trim() || data.opponents.includes(name) || data.opponents.length >= 8) return;
@@ -42,74 +44,100 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
   };
 
   const startHighlander = (championName: string, healing: number, timeLimit: number) => {
-    if (data.opponents.length < 2) {
-      alert("⚠️ Il faut au moins 2 adversaires !");
-      return;
-    }
+  if (data.opponents.length < 2) {
+    alert("⚠️ Il faut au moins 2 adversaires !");
+    return;
+  }
 
-    const shuffled = [...data.opponents].sort(() => Math.random() - 0.5);
+  const shuffled = [...data.opponents].sort(() => Math.random() - 0.5);
+
+  setData(prev => ({
+    ...prev,
+    championName: championName || "Champion",
+    healingAmount: healing,
+    timeLimit,
+    championHP: 10,
+    currentOpponentIndex: 0,
+    defeatedOpponents: [],
+    opponents: shuffled,
+    isActive: true,
+  }));
+
+  setIsStartingHighlander(true);
+};
+
+useEffect(() => {
+  if (!isStartingHighlander) return;
+
+  setPlayer1HP(10);
+  setPlayer2HP(10);
+  setStep("progress");
+  setIsStartingHighlander(false);
+}, [isStartingHighlander, data]);
+
+
+const [isNextFightRequested, setIsNextFightRequested] = useState(false);
+
+useEffect(() => {
+  if (!isNextFightRequested || step !== "progress") return;
+
+  const nextOpponent = data.opponents[data.currentOpponentIndex];
+  setPlayer2Name(nextOpponent);
+  setPlayer1HP(nextChampionHP ?? data.championHP);
+  setPlayer2HP(10);
+  setStep("combat");
+
+  setIsNextFightRequested(false);
+  setNextChampionHP(null);
+}, [isNextFightRequested, step, data.opponents, data.currentOpponentIndex, data.championHP, nextChampionHP,]);
+
+const handleCombatEnd = (winner: string) => {
+  if (winner === data.championName) {
+    const nextIndex = data.currentOpponentIndex + 1;
+    const isLast = nextIndex >= data.opponents.length;
+    const newHP = Math.min(player1HP + data.healingAmount, 10);
+    setNextChampionHP(newHP);
 
     setData(prev => ({
       ...prev,
-      championName: championName || "Champion",
-      healingAmount: healing,
-      timeLimit,
-      championHP: 10,
-      currentOpponentIndex: 0,
-      defeatedOpponents: [],
-      opponents: shuffled,
-      isActive: true,
+      championHP: newHP,
+      defeatedOpponents: [...prev.defeatedOpponents, prev.opponents[prev.currentOpponentIndex]],
+      currentOpponentIndex: nextIndex,
     }));
-    setStep("progress");
-  };
 
-  const startNextOpponent = () => {
-    if (data.currentOpponentIndex >= data.opponents.length) {
+    if (isLast) {
       setStep("results");
-      return;
-    }
-
-    const nextOpponent = data.opponents[data.currentOpponentIndex];
-    setPlayer2Name(nextOpponent);
-    setPlayer1HP(data.championHP);
-    setPlayer2HP(10);
-    setStep("combat");
-  };
-
-  const handleCombatEnd = (winner: string) => {
-    if (winner === data.championName) {
-      // Champion a gagné
-      setData(prev => ({
-        ...prev,
-        championHP: Math.min(prev.championHP + prev.healingAmount, 10),
-        defeatedOpponents: [...prev.defeatedOpponents, data.opponents[data.currentOpponentIndex]],
-        currentOpponentIndex: prev.currentOpponentIndex + 1,
-      }));
-      if (data.currentOpponentIndex + 1 >= data.opponents.length) {
-        setStep("results");
-      } else {
-        setStep("progress");
-      }
     } else {
-      // Champion éliminé
-      setData(prev => ({ ...prev, championHP: 0 }));
-      setStep("results");
+      setStep("progress");
     }
-  };
+  } else {
+    setData(prev => ({ ...prev, championHP: 0 }));
+    setStep("results");
+  }
+};
 
-  const resetHighlander = () => {
-    setData({
-      championName: "",
-      championHP: 10,
-      healingAmount: 2,
-      opponents: [],
-      currentOpponentIndex: 0,
-      defeatedOpponents: [],
-      timeLimit: 120,
-      isActive: false,
-    });
-    setStep("setup");
-  };
+const resetHighlander = () => {
+  setData({
+    championName: "",
+    championHP: 10,
+    healingAmount: 2,
+    opponents: [],
+    currentOpponentIndex: 0,
+    defeatedOpponents: [],
+    timeLimit: 120,
+    isActive: false,
+  });
+
+  setPlayer1HP(10);
+  setPlayer2HP(10);
+  setPlayer2Name("");
+  setNextChampionHP(null);
+  setIsStartingHighlander(false);
+  setIsNextFightRequested(false);
+  setStep("setup");
+};
+
+
 
   return (
     <div className="max-w-3xl mx-auto p-6 bg-black/40 border border-red-400/40 rounded-xl box-glow">
@@ -221,27 +249,28 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
             </div>
           </div>
           <div className="flex gap-4 justify-center">
-            <Button onClick={startNextOpponent}>⚔️ Prochain Combat</Button>
+            <Button onClick={() => setIsNextFightRequested(true)}>⚔️ Prochain Combat</Button>
             <Button onClick={onBack}>← Abandonner</Button>
           </div>
         </div>
       )}
 
       {step === "combat" && (
-  <div className="fixed inset-0 z-50">
-    <CombatArea
-      player1={data.championName}
-      player1HP={player1HP}
-      onPlayer1HPChange={setPlayer1HP}
-      player2={player2Name}
-      player2HP={player2HP}
-      onPlayer2HPChange={setPlayer2HP}
-      duration={data.timeLimit}
-      onEnd={handleCombatEnd}
-      mode="highlander"
-    />
-  </div>
-)}
+        <div className="fixed inset-0 z-50">
+          <CombatArea
+            key={`fight-${data.currentOpponentIndex}`}
+            player1={data.championName}
+            player1HP={player1HP}
+            onPlayer1HPChange={setPlayer1HP}
+            player2={player2Name}
+            player2HP={player2HP}
+            onPlayer2HPChange={setPlayer2HP}
+            duration={data.timeLimit}
+            onEnd={handleCombatEnd}
+            mode="highlander"
+          />
+        </div>
+      )}
 
 
       {step === "results" && (

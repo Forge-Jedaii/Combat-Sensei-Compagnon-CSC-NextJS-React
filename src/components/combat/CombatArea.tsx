@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Timer from "../ui/Timer";
 import UndoHit from "../ui/UndoHit";
 import { toPng } from "html-to-image";
@@ -26,7 +26,7 @@ type LastHit = {
   previousHp2: number;
 };
 
-export default function CombatArea({ player1, player2, duration, onEnd }: CombatAreaProps) {
+export default function CombatArea({ player1, player2, duration, onEnd, mode, player1HP, player2HP }: CombatAreaProps) {
   const [hp1, setHp1] = useState(10);
   const [hp2, setHp2] = useState(10);
   const [winner, setWinner] = useState<string | null>(null);
@@ -36,28 +36,44 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
   const [paused, setPaused] = useState(true);
   const [resetKey, setResetKey] = useState(0);
 
-  const handleHit = (target: "left" | "right") => {
+ const handleHit = (target: "left" | "right") => {
     if (winner) return;
 
     setHitHistory((prev) => {
       const newHistory = [...prev, { target, previousHp1: hp1, previousHp2: hp2 }];
-      return newHistory.slice(-2); // garder uniquement les 2 dernières touches
+      return newHistory.slice(-2);
     });
 
     if (target === "left") {
-      setHp1((prev) => {
-        const newHp = Math.max(prev - 1, 0);
-        if (newHp === 0) setWinner(player2);
-        return newHp;
-      });
+      setHp1((prev) => Math.max(prev - 1, 0));
     } else {
-      setHp2((prev) => {
-        const newHp = Math.max(prev - 1, 0);
-        if (newHp === 0) setWinner(player1);
-        return newHp;
-      });
+      setHp2((prev) => Math.max(prev - 1, 0));
     }
   };
+
+  const initialized = React.useRef(false);
+
+useEffect(() => {
+  if (!initialized.current && mode === "highlander") {
+    if (typeof player1HP === "number") setHp1(player1HP);
+    if (typeof player2HP === "number") setHp2(player2HP);
+    initialized.current = true;
+  }
+}, [mode, player1HP, player2HP]);
+
+
+  useEffect(() => {
+    if (winner) return; // Déjà fini
+
+    if (hp1 === 0) {
+      setWinner(player2);
+      if (mode === "highlander") onEnd(player2);
+    } else if (hp2 === 0) {
+      setWinner(player1);
+      if (mode === "highlander") onEnd(player1);
+    }
+  }, [hp1, hp2, winner, mode, onEnd, player1, player2]);
+
 
   const handleUndo = () => {
     if (hitHistory.length === 0 || winner) return;
@@ -77,12 +93,16 @@ export default function CombatArea({ player1, player2, duration, onEnd }: Combat
           <div className="text-cyber-blue font-bold text-xl sm:text-2xl font-mono text-glow px-4 py-1 bg-black/40 border border-cyber-blue/40 rounded">
             {duration > 0 ? (
               <Timer
-                key={resetKey}
-                duration={duration}
-                paused={paused}
-                onEnd={() => setWinner("⏳ Temps écoulé")}
-                compact
-              />
+                  key={resetKey}
+                  duration={duration}
+                  paused={paused}
+                  onEnd={() => {
+                    setWinner("⏳ Temps écoulé");
+                    if (mode === "highlander") onEnd("⏳ Temps écoulé");
+                  }}
+                  compact
+                />
+
             ) : (
               "∞"
             )}
