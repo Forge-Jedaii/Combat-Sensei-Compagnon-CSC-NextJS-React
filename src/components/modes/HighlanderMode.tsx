@@ -273,6 +273,8 @@ const resetHighlander = () => {
       )}
 
 
+
+
       {step === "results" && (
         <div className="text-center">
           <h2 className="text-red-400 text-2xl font-bold text-glow mb-6">🔥 Résultat Highlander 🔥</h2>

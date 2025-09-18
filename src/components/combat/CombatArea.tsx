@@ -26,7 +26,7 @@ type LastHit = {
   previousHp2: number;
 };
 
-export default function CombatArea({ player1, player2, duration, onEnd, mode, player1HP, player2HP }: CombatAreaProps) {
+export default function CombatArea({ player1, player2, duration, onEnd, mode, player1HP,onPlayer1HPChange, player2HP, onPlayer2HPChange }: CombatAreaProps) {
   const [hp1, setHp1] = useState(10);
   const [hp2, setHp2] = useState(10);
   const [winner, setWinner] = useState<string | null>(null);
@@ -36,20 +36,34 @@ export default function CombatArea({ player1, player2, duration, onEnd, mode, pl
   const [paused, setPaused] = useState(true);
   const [resetKey, setResetKey] = useState(0);
 
- const handleHit = (target: "left" | "right") => {
-    if (winner) return;
+ // 1. Ne PAS appeler le onPlayer1HPChange dans le setHp1
+const handleHit = (target: "left" | "right") => {
+  if (winner) return;
 
-    setHitHistory((prev) => {
-      const newHistory = [...prev, { target, previousHp1: hp1, previousHp2: hp2 }];
-      return newHistory.slice(-2);
-    });
+  setHitHistory((prev) => {
+    const newHistory = [...prev, { target, previousHp1: hp1, previousHp2: hp2 }];
+    return newHistory.slice(-2);
+  });
 
-    if (target === "left") {
-      setHp1((prev) => Math.max(prev - 1, 0));
-    } else {
-      setHp2((prev) => Math.max(prev - 1, 0));
-    }
-  };
+  if (target === "left") {
+    setHp1((prev) => Math.max(prev - 1, 0));
+  } else {
+    setHp2((prev) => Math.max(prev - 1, 0));
+  }
+};
+
+useEffect(() => {
+  if (mode === "highlander" && onPlayer1HPChange) {
+    onPlayer1HPChange(hp1);
+  }
+}, [hp1, mode, onPlayer1HPChange]);
+
+useEffect(() => {
+  if (mode === "highlander" && onPlayer2HPChange) {
+    onPlayer2HPChange(hp2);
+  }
+}, [hp2, mode, onPlayer2HPChange]);
+
 
   const initialized = React.useRef(false);
 
