@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Timer from "../ui/Timer";
 import UndoHit from "../ui/UndoHit";
 import { toPng } from "html-to-image";
+import { processCombatResult } from "@/lib/game/rankings";
 
 type CombatAreaProps = {
   player1: string;

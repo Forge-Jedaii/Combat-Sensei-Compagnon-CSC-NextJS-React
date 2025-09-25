@@ -77,14 +77,6 @@ export const GAME_MODES = {
   }
 };
 
-export const RANKS = [
-  { name: 'Padawan', minLevel: 1, color: '#8B4513' },
-  { name: 'Apprenti Je\'daii', minLevel: 5, color: '#4169E1' },
-  { name: 'Gardien Je\'daii', minLevel: 10, color: '#32CD32' },
-  { name: 'Chevalier Je\'daii', minLevel: 15, color: '#FFD700' },
-  { name: 'Maître Je\'daii', minLevel: 20, color: '#FF4500' },
-  { name: 'Grand Maître Je\'daii', minLevel: 25, color: '#8A2BE2' }
-];
 
 export const BADGES = {
   champion: { name: 'Champion', icon: '🏆', description: '100 victoires' },
@@ -95,8 +87,40 @@ export const BADGES = {
   dominator: { name: 'Dominateur', icon: '👑', description: '80% de victoires' },
   fearless: { name: 'Intrépide', icon: '🦁', description: 'Courage au combat' },
   comeback_king: { name: 'Roi du Comeback', icon: '🔄', description: 'Retournements de situation' },
-  unstoppable: { name: 'Inarrêtable', icon: '🚀', description: 'Série de 10 victoires' }
+  unstoppable: { name: 'Inarrêtable', icon: '🚀', description: 'Série de 10 victoires' },
+
+  // Mode duel classique 1vs1
+  duel_master: { name: 'Maître du Duel', icon: '⚔️', description: 'Victoire en duel 1vs1 classique' },
+  duel_champion: { name: 'Champion du Duel', icon: '🏹', description: '10 victoires en duel 1vs1 classique' },
+
+  // Mode duel officiel 1vs1
+  official_warrior: { name: 'Guerrier Officiel', icon: '🛡️', description: 'Victoire en duel 1vs1 officiel' },
+  official_champion: { name: 'Champion Officiel', icon: '🎖️', description: '5 victoires en duel 1vs1 officiel' },
+
+  // Mode Highlander
+  highlander_survivor: { name: 'Survivant Highlander', icon: '🏔️', description: 'Victoire en mode Highlander' },
+  highlander_legend: { name: 'Légende Highlander', icon: '⚡', description: '10 victoires en mode Highlander' },
+
+  // Mode tournoi
+  tournament_fighter: { name: 'Combattant du Tournoi', icon: '🏟️', description: 'Participé à un tournoi' },
+  tournament_champion: { name: 'Champion du Tournoi', icon: '🥇', description: 'Vainqueur d’un tournoi' },
+
+  // Mode handicap
+  underdog: { name: 'Challenger', icon: '🦾', description: 'Victoire en mode handicap' },
+  against_all_odds: { name: 'Contre Toute Attente', icon: '🔥', description: '10 victoires en mode handicap' },
+
+  // Autres badges généraux
+  relentless: { name: 'Implacable', icon: '🔥', description: '10 combats sans perdre' },
+  strategist: { name: 'Stratège', icon: '🧠', description: 'Victoire grâce à une tactique parfaite' },
+  hero_of_the_crowd: { name: 'Héros du Public', icon: '🎉', description: 'Acclamé par les spectateurs' },
+  shadow_fighter: { name: 'Guerrier de l’Ombre', icon: '🌑', description: 'Victoire discrète et surprenante' },
+  titan_slayer: { name: 'Tueur de Titan', icon: '⚡', description: 'Vaincu un adversaire supérieur' },
+  iron_will: { name: 'Volonté de Fer', icon: '🛡️', description: 'Ne jamais abandonner' },
+  lightning_strike: { name: 'Frappe Éclair', icon: '🌩️', description: 'Victoire rapide' },
+  legend_in_the_making: { name: 'Légende en Devenir', icon: '🏹', description: 'Atteint un rang mythique' }
 };
+
+
 
 export const ACHIEVEMENTS = {
   first_win: { name: 'Première Victoire', icon: '🥇', description: 'Remporter son premier combat' },
@@ -179,26 +203,3 @@ export const TUTORIAL_STEPS = [
   }
 ];
 
-// src/data/gameData.ts
-
-export const handicaps = [
-  "Combattre avec une seule main",
-  "Commencer avec 1 point en moins",
-  "Doit rester en mouvement constant",
-  "Ne peut attaquer qu’en rotation",
-  "Doit tenir son sabre à deux mains",
-  "Temps de réaction réduit (malus)",
-  "Interdiction de reculer",
-  "Sabre à l’envers",
-  "Défense uniquement en parade circulaire",
-  "Doit annoncer ses attaques avant de frapper",
-  "N’a le droit qu’à une zone valide par échange",
-  "Sabre tenu uniquement de la main non dominante",
-  "Obligation de saut dans chaque échange",
-  "Un bras derrière le dos",
-  "Doit toucher deux fois pour marquer un point",
-  "Doit fermer les yeux 2 secondes avant chaque attaque",
-  "Doit reculer après chaque touche portée",
-  "Ne peut pas attaquer deux fois de suite",
-  "Commence le duel accroupi",
-];

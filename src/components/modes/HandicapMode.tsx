@@ -13,6 +13,8 @@ const playerHandicapsPool = [
   "☠️ Commence avec 3 PV seulement",
   "💔 Commence avec 3 PV seulement",
   "🔥  Double dégâts pour soi !",
+  "🔄 Sabre à l’envers",
+  "📢 Doit annoncer ses attaques",
 ];
 
 export default function HandicapMode({ onBack }: { onBack?: () => void }) {
