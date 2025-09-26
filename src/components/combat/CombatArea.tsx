@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Timer from "../ui/Timer";
 import UndoHit from "../ui/UndoHit";
+import FaultSystem from "./FaultSystem";
 import { toPng } from "html-to-image";
 import { processCombatResult } from "@/lib/game/rankings";
 
@@ -27,13 +28,6 @@ type LastHit = {
   previousHp2: number;
 };
 
-type Fault = {
-  player: string;
-  type: "jaune" | "rouge" | "noir";
-  reason: string;
-  time: string;
-};
-
 export default function CombatArea({
   player1,
   player2,
@@ -50,16 +44,6 @@ export default function CombatArea({
   const [winner, setWinner] = useState<string | null>(null);
   const [hitHistory, setHitHistory] = useState<LastHit[]>([]);
 
-  // Fautes
-  const [fautes, setFautes] = useState<Fault[]>([]);
-  const [showFautes, setShowFautes] = useState(false);
-  const [showAttribution, setShowAttribution] = useState<{
-    target: "left" | "right";
-    type: Fault["type"];
-  } | null>(null);
-  const [reason, setReason] = useState("zone");
-  const jaunesCount = React.useRef({ left: 0, right: 0 });
-
   // Timer
   const [paused, setPaused] = useState(true);
   const [resetKey, setResetKey] = useState(0);
@@ -73,37 +57,6 @@ export default function CombatArea({
     });
     if (target === "left") setHp1((prev) => Math.max(prev - 1, 0));
     else setHp2((prev) => Math.max(prev - 1, 0));
-  };
-
-  // Confirmer une faute depuis la modal
-  const confirmFaute = () => {
-    if (!showAttribution) return;
-    const { target, type } = showAttribution;
-    const playerName = target === "left" ? player1 : player2;
-    const time = new Date().toLocaleTimeString();
-
-    const newFault: Fault = { player: playerName, type, reason, time };
-    setFautes((prev) => [...prev, newFault]);
-
-    // Règles
-    if (type === "jaune") {
-      jaunesCount.current[target] += 1;
-      if (jaunesCount.current[target] >= 2) {
-        if (target === "left") setHp1((h) => Math.max(h - 1, 0));
-        else setHp2((h) => Math.max(h - 1, 0));
-        jaunesCount.current[target] = 0;
-      }
-    }
-    if (type === "rouge") {
-      setWinner(target === "left" ? player2 : player1);
-      onEnd(target === "left" ? player2 : player1);
-    }
-    if (type === "noir") {
-      setWinner((target === "left" ? player2 : player1) + " (victoire par disqualification)");
-      onEnd(target === "left" ? player2 : player1);
-    }
-
-    setShowAttribution(null);
   };
 
   // Sync highlander
@@ -168,7 +121,6 @@ export default function CombatArea({
           </button>
           <button onClick={() => setResetKey((k) => k + 1)} className="w-10 h-10 flex justify-center items-center bg-cyber-purple/20 border border-cyber-purple text-cyber-purple rounded-full">🔄</button>
           <button onClick={() => onEnd("")} className="w-10 h-10 flex justify-center items-center bg-cyber-navy/20 border border-cyber-navy text-cyber-navy rounded-full">🏠</button>
-          <button onClick={() => setShowFautes(true)} className="px-3 py-1 bg-purple-500/30 text-purple-400 border border-purple-500 rounded">📋 Historique</button>
         </div>
       </div>
 
@@ -182,90 +134,25 @@ export default function CombatArea({
         </div>
       </div>
 
-      {/* Fautes Cards */}
-      <div className="grid grid-cols-2 gap-4 p-4 bg-black/30 border-t border-cyber-blue/30">
-        {[{ side: "left", name: player1, color: "text-green-400 border-green-400" },
-          { side: "right", name: player2, color: "text-yellow-400 border-yellow-400" }]
-          .map(({ side, name, color }) => (
-          <div key={side} className={`bg-black/60 rounded-lg p-3 border ${color}`}>
-            <div className={`${color} font-bold mb-2 text-center`}>{name}</div>
-            <div className="flex justify-center gap-1 mb-2">
-              {fautes.filter(f => f.player === name).map((f, i) => (
-                <span key={i} className={
-                  f.type === "jaune" ? "text-yellow-400" :
-                  f.type === "rouge" ? "text-red-500" : "text-gray-200"
-                }>
-                  {f.type === "jaune" ? "🟨" : f.type === "rouge" ? "🟥" : "⬛"}
-                </span>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-1">
-              <button onClick={() => setShowAttribution({ target: side as "left"|"right", type: "jaune" })} className="bg-yellow-500/20 text-yellow-400 border border-yellow-400 px-2 py-1 rounded text-xs font-bold">⚡ Jaune</button>
-              <button onClick={() => setShowAttribution({ target: side as "left"|"right", type: "rouge" })} className="bg-red-500/20 text-red-400 border border-red-400 px-2 py-1 rounded text-xs font-bold">⚡ Rouge</button>
-              <button onClick={() => setShowAttribution({ target: side as "left"|"right", type: "noir" })} className="col-span-2 bg-gray-500/20 text-gray-400 border border-gray-400 px-2 py-1 rounded text-xs font-bold">⚡ Noir</button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Fault System */}
+      <FaultSystem 
+        player1={player1}
+        player2={player2}
+        onFaultPenalty={(target, penaltyType, winner) => {
+          if (penaltyType === "hp") {
+            if (target === "left") setHp1((h) => Math.max(h - 1, 0));
+            else setHp2((h) => Math.max(h - 1, 0));
+          } else if (penaltyType === "disqualification") {
+            setWinner(winner || (target === "left" ? player2 : player1));
+            onEnd(winner || (target === "left" ? player2 : player1));
+          }
+        }}
+      />
 
       {/* Undo */}
       <div className="flex justify-center p-3 bg-black/20 border-t border-cyber-blue/30">
         <UndoHit onUndo={handleUndo} disabled={hitHistory.length === 0 || !!winner} text="↻ Annuler la dernière touche" />
       </div>
-
-      {/* Modal Attribution */}
-      {showAttribution && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black/80 backdrop-blur-lg z-50">
-          <div className="bg-gradient-to-br from-cyber-dark via-cyber-purple to-cyber-navy p-6 rounded-xl border-2 border-cyber-blue max-w-md w-full text-center">
-            <h2 className="text-cyber-blue text-xl font-bold mb-4">⚡ Attribution de Faute ⚡</h2>
-            <p className="text-white font-bold mb-2">
-              {showAttribution.target === "left" ? player1 : player2}
-            </p>
-            <p className={
-              showAttribution.type === "jaune" ? "text-yellow-400" :
-              showAttribution.type === "rouge" ? "text-red-500" : "text-gray-200"
-            }>
-              {showAttribution.type === "jaune" ? "🟨 Jaune" : showAttribution.type === "rouge" ? "🟥 Rouge" : "⬛ Noir"}
-            </p>
-            <select value={reason} onChange={(e) => setReason(e.target.value)} className="w-full p-2 bg-black/70 border-2 border-cyber-blue rounded-lg text-white mt-4">
-              <option value="zone">🚫 Sortie de zone répétée</option>
-              <option value="technique">⚔️ Technique interdite</option>
-              <option value="antigame">🐌 Anti-jeu</option>
-              <option value="respect">😤 Non respect</option>
-            </select>
-            <div className="flex gap-3 mt-6">
-              <button onClick={confirmFaute} className="flex-1 bg-red-600 text-white font-bold py-2 rounded-lg">⚡ Confirmer</button>
-              <button onClick={() => setShowAttribution(null)} className="flex-1 bg-gray-500 text-white font-bold py-2 rounded-lg">Annuler</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Historique */}
-      {showFautes && (
-        <div className="fixed inset-0 flex justify-center items-center bg-black/80 backdrop-blur-lg z-50">
-          <div className="bg-gradient-to-br from-cyber-dark via-cyber-purple to-cyber-navy p-6 rounded-xl border-2 border-cyber-blue max-w-2xl w-full text-center">
-            <h2 className="text-cyber-blue text-2xl font-bold mb-4">📋 Historique des Fautes 📋</h2>
-            <div className="max-h-[70vh] overflow-y-auto space-y-2">
-              {fautes.length === 0 && <p className="text-gray-300">Aucune faute enregistrée</p>}
-              {fautes.map((f, i) => (
-                <div key={i} className="flex justify-between items-center p-2 bg-black/40 border border-cyber-blue/30 rounded">
-                  <span className="text-white font-bold">{f.player}</span>
-                  <span className={
-                    f.type === "jaune" ? "text-yellow-400 font-bold" :
-                    f.type === "rouge" ? "text-red-500 font-bold" :
-                    "text-gray-200 font-bold"
-                  }>
-                    {f.type === "jaune" ? "🟨" : f.type === "rouge" ? "🟥" : "⬛"} {f.reason}
-                  </span>
-                  <span className="text-sm text-gray-400">{f.time}</span>
-                </div>
-              ))}
-            </div>
-            <button onClick={() => setShowFautes(false)} className="mt-4 w-full bg-red-600 text-white font-bold py-2 rounded-lg">Fermer</button>
-          </div>
-        </div>
-      )}
 
       {/* Modal Fin Combat */}
       {winner && (
@@ -296,7 +183,7 @@ export default function CombatArea({
                 const text = `⚔️ Résultat du combat\n${player1}: ${hp1} PV\n${player2}: ${hp2} PV\n🏆 Vainqueur : ${winner}`;
                 await navigator.clipboard.writeText(text);
                 alert("✅ Résultat copié ! Collez-le dans Discord 🚀");
-              }} className="w-full bg-indigo-600 px-4 py-2 rounded-lg font-bold">🎮 Discord</button>
+              }} className="w-full bg-indigo-600 px-4 py-2 rounded-lg font-bold">📎 Discord</button>
               <button onClick={() => onEnd("")} className="w-full bg-red-600 px-4 py-2 rounded-lg font-bold">❌ Fermer</button>
             </div>
           </div>
