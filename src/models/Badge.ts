@@ -1,17 +1,18 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IBadge extends Document {
   name: string;
   description: string;
   icon: string;
-  rarity: "common" | "rare" | "epic" | "legendary";
+  rarity: number;
 }
 
 const BadgeSchema = new Schema<IBadge>({
   name: { type: String, required: true },
   description: { type: String, required: true },
   icon: { type: String, required: true },
-  rarity: { type: String, enum: ["common", "rare", "epic", "legendary"], default: "common" },
+  rarity: { type: Number, default: 1 },
 });
 
-export default models.Badge || mongoose.model<IBadge>("Badge", BadgeSchema);
+export default mongoose.models.Badge ||
+  mongoose.model<IBadge>("Badge", BadgeSchema);

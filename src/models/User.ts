@@ -1,6 +1,7 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IUser extends Document {
+  id: number;
   username: string;
   email: string;
   points: number;
@@ -9,6 +10,7 @@ export interface IUser extends Document {
 }
 
 const UserSchema = new Schema<IUser>({
+  id: {type : Number, required : true},
   username: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   points: { type: Number, default: 0 },
@@ -16,4 +18,5 @@ const UserSchema = new Schema<IUser>({
   achievements: [{ type: String }],
 });
 
-export default models.User || mongoose.model<IUser>("User", UserSchema);
+export default mongoose.models.User ||
+  mongoose.model<IUser>("User", UserSchema);

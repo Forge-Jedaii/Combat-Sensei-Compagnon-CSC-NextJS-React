@@ -32,4 +32,9 @@ async function connectToDatabase() {
   return cached.conn;
 }
 
+mongoose.connection.once("open", () => {
+  console.log("✅ MongoDB connected");
+});
+
+
 export default connectToDatabase;

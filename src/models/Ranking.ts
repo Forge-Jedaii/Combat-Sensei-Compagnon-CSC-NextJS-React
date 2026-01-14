@@ -1,17 +1,18 @@
-import mongoose, { Schema, Document, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface IRanking extends Document {
-  userId: string;
+  userId: number;
   score: number;
   victories: number;
   defeats: number;
 }
 
 const RankingSchema = new Schema<IRanking>({
-  userId: { type: String, required: true },
+  userId: { type: Number, required: true },
   score: { type: Number, default: 1000 },
   victories: { type: Number, default: 0 },
   defeats: { type: Number, default: 0 },
 });
 
-export default models.Ranking || mongoose.model<IRanking>("Ranking", RankingSchema);
+export default mongoose.models.Ranking ||
+  mongoose.model<IRanking>("Ranking", RankingSchema);
