@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${orbitron.variable} font-orbitron h-screen overflow-hidden bg-cyber-gradient bg-cyber-overlay`}
+        className={`${orbitron.variable} font-orbitron min-h-screen overflow-y-auto hide-scrollbar bg-cyber-gradient bg-cyber-overlay`}
       >
         {children}
       </body>
