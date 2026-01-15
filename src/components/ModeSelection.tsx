@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import OfficialRules from "./regulations/OfficialRules";
 import FJRules from "./regulations/OfficialsFJ1vs1";
-
+import { useRouter } from "next/navigation";
 interface ModeSelectionProps {
   onSelect: (mode: string) => void;
 }
@@ -11,7 +11,7 @@ interface ModeSelectionProps {
 export default function ModeSelection({ onSelect }: ModeSelectionProps) {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [activeRule, setActiveRule] = useState<"csc" | "fj1vs1">("csc");
-
+const router = useRouter();
   const modes = [
     { 
       key: "duel", 
@@ -119,7 +119,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
             
             {/* Archives de la Forge */}
             <div 
-              onClick={() => onSelect("archives")}
+              onClick={() => router.push("/archives")}
               className="group relative overflow-hidden bg-gradient-to-br from-purple-500/20 to-purple-600/20 text-purple-400 border-2 border-purple-400 hover:border-purple-300 px-6 py-6 rounded-2xl font-bold cursor-pointer transition-all duration-300 box-glow hover:scale-105 hover:box-glow-strong active:scale-95 min-h-[140px] flex flex-col items-center justify-center text-center"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

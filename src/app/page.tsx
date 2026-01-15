@@ -9,7 +9,7 @@ import TournamentMode from "@/components/modes/TournamentMode";
 import HighlanderMode from "@/components/modes/HighlanderMode";
 import BattleRoyaleMode from "@/components/modes/BattleRoyaleMode";
 import OfficialRules from "@/components/regulations/OfficialRules";
-import ArchivesForge from "@/app/archives/page"; // Nouveau composant
+// import ArchivesForge from "@/app/archives/page"; // Nouveau composant
 
 export default function Page() {
   const [mode, setMode] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function Page() {
         )}
 
         {/* Utilisation du nouveau composant ArchivesForge */}
-        {mode === "archives" && <ArchivesForge onBack={() => setMode(null)} />}
+        {/* {mode === "archives" && <ArchivesForge onBack={() => setMode(null)} />} */}
       </div>
     </>
   );
