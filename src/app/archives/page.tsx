@@ -41,7 +41,7 @@ const sections = [
   },
   {
     id: "achievements",
-    title: "Achievements",
+    title: "Succès",
     subtitle: "Badges & Titres",
     icon: "🏅",
     color: "from-[#3b1d17] to-[#26110d]",

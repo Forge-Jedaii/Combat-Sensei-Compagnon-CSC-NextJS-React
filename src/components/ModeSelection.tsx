@@ -110,7 +110,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
-                <div className="text-4xl mb-3">📜</div>
+                <div className="text-4xl mb-3 text-glow">📜</div>
                 <h3 className="text-xl text-glow font-bold text-white mb-2 font-orbitron">Règlements Officiels</h3>
                 <div className="text-xs text-glow sm:text-sm text-cyan-300/80">Code de la Forge</div>
                 <div className="text-xs text-glow text-cyan-200/60 mt-1">Règles • Fautes • Modes</div>
@@ -124,7 +124,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <div className="relative z-10">
-                <div className="text-4xl mb-3">🏛️</div>
+                <div className="text-4xl mb-3 text-glow">🏛️</div>
                 <h3 className="text-xl text-glow font-bold text-white mb-2 font-orbitron">Archives de la Forge</h3>
                 <div className="text-xs text-glow sm:text-sm text-purple-300/80">Base de Données</div>
                 <div className="text-xs text-glow text-purple-200/60 mt-1">Classements • Profils • Stats</div>
