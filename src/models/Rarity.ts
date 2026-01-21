@@ -1,13 +1,19 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IRarity extends Document {
-  id: number;
   name: string;
+  category : string;
+  description? : string;
 }
 
 const RaritySchema = new Schema<IRarity>({
-  id: {type : Number, required : true},
   name: { type: String, required: true },
+  category : { type : String, required : true},
+  description : { type : String },
+}, 
+{ 
+  collection: "rarities", 
+  timestamps: true, 
 });
 
 export default mongoose.models.Rarity ||
