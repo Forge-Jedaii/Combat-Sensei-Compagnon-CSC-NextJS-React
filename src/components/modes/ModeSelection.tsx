@@ -185,8 +185,8 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
         {/* ===== FOOTER ===== */}
         <div className="flex flex-col items-center justify-center pt-6 pb-4">
           <div className="text-xs sm:text-sm text-gray-400 mb-2">
-            <span className="text-cyber-blue font-semibold">Version 2.1</span> •
-            <span> Forge Je&apos;daii Academy</span> •<span> © 2025</span>
+            <span className="text-cyber-blue font-semibold">Version 0.2.1</span>{" "}
+            •<span> Forge Je&apos;daii Academy</span> •<span> © 2026</span>
           </div>
           <div className="text-xs text-gray-500">
             ⚔️ Que la Force soit avec vous ! ⚔️

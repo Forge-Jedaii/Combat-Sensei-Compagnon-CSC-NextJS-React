@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useUserMode } from "@/components/context/UserModeContext";
 
 const sections = [
   {
@@ -41,7 +42,7 @@ const sections = [
   },
   {
     id: "achievements",
-    title: "Succès",
+    title: "Achievements",
     subtitle: "Badges & Titres",
     icon: "🏅",
     color: "from-[#3b1d17] to-[#26110d]",
@@ -60,10 +61,22 @@ const sections = [
 ];
 
 export default function ArchivesPage() {
+  const { mode } = useUserMode();
+  const isGuest = mode === "guest";
+
+  // 🔒 Masquer Paramètres en mode invité
+  const visibleSections = sections.filter(
+    (section) => !(isGuest && section.id === "parametres"),
+  );
+
   return (
-    <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* ================= RETOUR ACCUEIL ================= */}
-      <div>
+    <main className="max-w-6xl mx-auto p-6 space-y-8">
+      {/* ===== HEADER ===== */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <h1 className="text-3xl font-bold text-purple-400 text-glow">
+          📚 Archives de la Forge
+        </h1>
+
         <Link
           href="/"
           className="
@@ -84,9 +97,17 @@ export default function ArchivesPage() {
         </Link>
       </div>
 
-      {/* ================= GRILLE ARCHIVES ================= */}
+      {/* ===== MODE INFO ===== */}
+      <p className="text-sm text-gray-400">
+        Mode actuel :{" "}
+        <span className="font-semibold text-purple-400">
+          {isGuest ? "Invité" : "Connecté"}
+        </span>
+      </p>
+
+      {/* ===== GRID SECTIONS ===== */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {sections.map((section) => (
+        {visibleSections.map((section) => (
           <Link
             key={section.id}
             href={`/archives/${section.id}`}
@@ -95,14 +116,22 @@ export default function ArchivesPage() {
               bg-gradient-to-br ${section.color}
               ${section.borderColor} ${section.glow}
               transition-all duration-300
+              hover:scale-[1.03]
             `}
           >
             <div className="text-4xl mb-3">{section.icon}</div>
             <h3 className="text-xl font-bold text-white">{section.title}</h3>
             <p className="text-sm text-gray-300">{section.subtitle}</p>
+
+            {/* Badge verrou si jamais (sécurité visuelle future) */}
+            {isGuest && section.id === "parametres" && (
+              <span className="absolute top-3 right-3 text-xs text-red-400 font-bold">
+                🔒 Connexion requise
+              </span>
+            )}
           </Link>
         ))}
       </div>
-    </div>
+    </main>
   );
 }
