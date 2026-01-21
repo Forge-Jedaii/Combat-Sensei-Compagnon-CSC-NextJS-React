@@ -2,10 +2,14 @@
 
 import Image from "next/image";
 import { useUserMode } from "../context/UserModeContext";
+import { useRouter } from "next/navigation";
+
+
 
 export default function ModeGate() {
   const { setMode } = useUserMode();
-
+  const router = useRouter();
+  
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 bg-cyber-gradient text-white px-4">
       {/* ===== LOGO ===== */}
@@ -39,7 +43,7 @@ export default function ModeGate() {
         </button>
 
         <button
-          onClick={() => setMode("authenticated")}
+          onClick={() => router.push("/login")}
           className="
             p-4 rounded-xl bg-purple-600/80 border border-purple-400
             hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]
