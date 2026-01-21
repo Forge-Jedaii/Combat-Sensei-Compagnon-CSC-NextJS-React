@@ -120,9 +120,9 @@ export default function AchievementsPage() {
             </p>
 
             <div className="mt-2 flex flex-wrap justify-center gap-1">
-              {achievement.rarities.map((rarity) => (
+              {achievement.rarities.map((rarity, index) => (
                 <span
-                  key={rarity._id}
+                  key={`${achievement._id}-${rarity._id}-${index}`}
                   className="text-[10px] px-2 py-0.5 rounded
                     bg-purple-600/20 text-purple-300 border border-purple-400/30"
                 >
