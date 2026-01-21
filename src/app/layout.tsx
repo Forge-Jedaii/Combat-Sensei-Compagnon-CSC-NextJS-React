@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Orbitron } from "next/font/google";
+import { UserModeProvider } from "@/components/context/UserModeContext";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -15,13 +16,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="fr">
       <body
-        className={`${orbitron.variable} font-orbitron min-h-screen overflow-y-auto hide-scrollbar bg-cyber-gradient bg-cyber-overlay`}
+        className={`${orbitron.variable} font-orbitron min-h-screen overflow-y-auto bg-cyber-gradient bg-cyber-overlay`}
       >
-        {children}
+        {/* ✅ PROVIDER GLOBAL OBLIGATOIRE */}
+        <UserModeProvider>{children}</UserModeProvider>
       </body>
     </html>
   );

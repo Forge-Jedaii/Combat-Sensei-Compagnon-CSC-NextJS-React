@@ -1,56 +1,46 @@
 "use client";
 
-import React, { useState } from "react";
-import ModeSelection from "@/components/ModeSelection";
-import DuelMode from "@/components/modes/DuelMode";
-import OfficialDuelMode from "@/components/modes/OfficialDuelMode";
-import HandicapMode from "@/components/modes/HandicapMode";
-import TournamentMode from "@/components/modes/TournamentMode";
-import HighlanderMode from "@/components/modes/HighlanderMode";
-import BattleRoyaleMode from "@/components/modes/BattleRoyaleMode";
-import OfficialRules from "@/components/regulations/OfficialRules";
-// import ArchivesForge from "@/app/archives/page"; // Nouveau composant
+import { useState } from "react";
+import { useUserMode } from "../components/context/UserModeContext";
+import ModeGate from "../components/auth/ModeGate";
+import ModeSelection from "../components/modes/ModeSelection";
 
-export default function Page() {
-  const [mode, setMode] = useState<string | null>(null);
+import DuelMode from "../components/modes/DuelMode";
+import HandicapMode from "../components/modes/HandicapMode";
+import TournamentMode from "../components/modes/TournamentMode";
+import HighlanderMode from "../components/modes/HighlanderMode";
+import BattleRoyaleMode from "../components/modes/BattleRoyaleMode";
 
-  return (
-    <>
-      <style jsx>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
-      <div
-        className="p-6 max-h-screen overflow-y-auto hide-scrollbar"
-        style={{
-          scrollbarWidth: "none" /* Firefox */,
-          msOverflowStyle: "none" /* Internet Explorer 10+ */,
-        }}
-      >
-        {!mode && <ModeSelection onSelect={setMode} />}
+export default function HomePage() {
+  const { mode } = useUserMode();
+  const [activeMode, setActiveMode] = useState<string | null>(null);
 
-        {mode === "duel" && <DuelMode onBack={() => setMode(null)} />}
-        {mode === "officialDuel" && (
-          <OfficialDuelMode onBack={() => setMode(null)} />
-        )}
-        {mode === "handicap" && <HandicapMode onBack={() => setMode(null)} />}
-        {mode === "tournament" && (
-          <TournamentMode onBack={() => setMode(null)} />
-        )}
-        {mode === "highlander" && (
-          <HighlanderMode onBack={() => setMode(null)} />
-        )}
-        {mode === "battleRoyale" && (
-          <BattleRoyaleMode onBack={() => setMode(null)} />
-        )}
-        {mode === "officialRules" && (
-          <OfficialRules onBack={() => setMode(null)} />
-        )}
+  // 1️⃣ Choix invité / connecté
+  if (!mode) return <ModeGate />;
 
-        {/* Utilisation du nouveau composant ArchivesForge */}
-        {/* {mode === "archives" && <ArchivesForge onBack={() => setMode(null)} />} */}
-      </div>
-    </>
-  );
+  // 2️⃣ Menu principal
+  if (!activeMode) {
+    return <ModeSelection onSelect={setActiveMode} />;
+  }
+
+  // 3️⃣ Modes internes
+  switch (activeMode) {
+    case "duel":
+      return <DuelMode onBack={() => setActiveMode(null)} />;
+
+    case "handicap":
+      return <HandicapMode onBack={() => setActiveMode(null)} />;
+
+    case "tournament":
+      return <TournamentMode onBack={() => setActiveMode(null)} />;
+
+    case "highlander":
+      return <HighlanderMode onBack={() => setActiveMode(null)} />;
+
+    case "battleRoyale":
+      return <BattleRoyaleMode onBack={() => setActiveMode(null)} />;
+
+    default:
+      return <ModeSelection onSelect={setActiveMode} />;
+  }
 }
