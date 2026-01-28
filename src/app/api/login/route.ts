@@ -36,7 +36,8 @@ export async function POST(req: Request) {
       _id: user._id,
       name: user.name,
       email: user.email,
-      points: user.points
+      points: user.points,
+      achievements: user.achievements
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);

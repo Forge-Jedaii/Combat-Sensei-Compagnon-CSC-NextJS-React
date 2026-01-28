@@ -61,7 +61,7 @@ const sections = [
 ];
 
 export default function ArchivesPage() {
-  const { mode } = useUserMode();
+  const { mode, user } = useUserMode();
   const isGuest = mode === "guest";
 
   // 🔒 Masquer Paramètres en mode invité
@@ -98,12 +98,17 @@ export default function ArchivesPage() {
       </div>
 
       {/* ===== MODE INFO ===== */}
+      {isGuest ? (
       <p className="text-sm text-gray-400">
-        Mode actuel :{" "}
-        <span className="font-semibold text-purple-400">
-          {isGuest ? "Invité" : "Connecté"}
-        </span>
+      Mode actuel :{" "}
+      <span className="font-semibold text-purple-400">Invité</span>
       </p>
+      ) : (
+      <p className="text-sm text-green-400">
+      Connecté - Bienvenu jeune padawan{" "}
+      <span className="font-bold">{user?.name}</span>
+      </p>
+      )}
 
       {/* ===== GRID SECTIONS ===== */}
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

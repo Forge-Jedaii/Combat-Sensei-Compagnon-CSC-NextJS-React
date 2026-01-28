@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUserMode } from "@/components/context/UserModeContext";
 
-
 export default function LoginPage() {
   const router = useRouter();
-  const { setMode } = useUserMode();
+
+  const { mode, user, setMode, setUser } = useUserMode();
 
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +19,7 @@ export default function LoginPage() {
     const res = await fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, password })
+      body: JSON.stringify({ name, password }),
     });
 
     const data = await res.json();
@@ -29,9 +29,12 @@ export default function LoginPage() {
       return;
     }
 
-    // stockage simple (temporaire)
-    localStorage.setItem("user", JSON.stringify(data));
+    // ✅ SOURCE DE VÉRITÉ : CONTEXT
+    setUser(data);
     setMode("authenticated");
+
+    // 🟡 optionnel / temporaire (reload plus tard)
+    localStorage.setItem("user", JSON.stringify(data));
 
     router.push("/archives");
   };

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useUserMode } from "@/components/context/UserModeContext";
 
 /* ================= TYPES ================= */
 
@@ -24,6 +25,7 @@ interface Achievement {
 /* ================= PAGE ================= */
 
 export default function AchievementsPage() {
+  const { user } = useUserMode();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAchievement, setSelectedAchievement] =
@@ -53,8 +55,12 @@ export default function AchievementsPage() {
     );
   }
 
+  // ✅ Calcul du nombre d’achievements débloqués
   const total = achievements.length;
-  const unlocked = 0; // provisoire
+  const unlocked = achievements.filter((ach) =>
+    user?.achievements.some((ua) => ua._id === ach._id)
+  ).length;
+
   const progress = total ? Math.round((unlocked / total) * 100) : 0;
 
   return (
@@ -100,38 +106,47 @@ export default function AchievementsPage() {
 
       {/* ACHIEVEMENTS GRID */}
       <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {achievements.map((achievement) => (
-          <div
-            key={achievement._id}
-            onClick={() => setSelectedAchievement(achievement)}
-            className="cursor-pointer rounded-xl p-4 border border-gray-700
-              bg-black/40 opacity-80 hover:opacity-100 transition-all"
-          >
-            <div className="text-4xl text-center mb-2">
-              {achievement.icon}
+        {achievements.map((achievement) => {
+          const isUnlocked = user?.achievements.some(
+            (ua) => ua._id === achievement._id
+          );
+
+          return (
+            <div
+              key={achievement._id}
+              onClick={() => setSelectedAchievement(achievement)}
+              className={`
+                cursor-pointer rounded-xl p-4 border
+                ${isUnlocked ? "border-green-400 bg-black/50" : "border-gray-700 bg-black/30 opacity-60"}
+                hover:opacity-100 transition-all
+              `}
+            >
+              <div className="text-4xl text-center mb-2">
+                {achievement.icon}
+              </div>
+
+              <p className="text-center font-bold text-white text-sm">
+                {achievement.name}
+              </p>
+
+              <p className="text-xs text-gray-400 text-center">
+                {achievement.description}
+              </p>
+
+              <div className="mt-2 flex flex-wrap justify-center gap-1">
+                {achievement.rarities.map((rarity, index) => (
+                  <span
+                    key={`${achievement._id}-${rarity._id}-${index}`}
+                    className="text-[10px] px-2 py-0.5 rounded
+                      bg-purple-600/20 text-purple-300 border border-purple-400/30"
+                  >
+                    {rarity.name}
+                  </span>
+                ))}
+              </div>
             </div>
-
-            <p className="text-center font-bold text-white text-sm">
-              {achievement.name}
-            </p>
-
-            <p className="text-xs text-gray-400 text-center">
-              {achievement.description}
-            </p>
-
-            <div className="mt-2 flex flex-wrap justify-center gap-1">
-              {achievement.rarities.map((rarity, index) => (
-                <span
-                  key={`${achievement._id}-${rarity._id}-${index}`}
-                  className="text-[10px] px-2 py-0.5 rounded
-                    bg-purple-600/20 text-purple-300 border border-purple-400/30"
-                >
-                  {rarity.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </section>
 
       {/* DÉTAIL */}
@@ -143,6 +158,12 @@ export default function AchievementsPage() {
 
           <p className="text-gray-300 mb-2">
             {selectedAchievement.description}
+          </p>
+
+          <p className="text-sm mt-2">
+            Statut : {user?.achievements.some((ua) => ua._id === selectedAchievement._id)
+              ? "Débloqué ✅"
+              : "Verrouillé 🔒"}
           </p>
 
           <div className="flex gap-2 mt-2">
