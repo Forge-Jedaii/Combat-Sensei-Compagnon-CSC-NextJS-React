@@ -1,56 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-
-type Badge = {
-  name: string;
-  place: string;
-  date: string;
-};
-
-type UserProfile = {
-  id: number;
-  pseudo: string;
-  club: string;
-  badges?: Badge[];
-};
+import { useUserMode } from "@/components/context/UserModeContext";
+import { redirect } from "next/dist/server/api-utils";
+import { useRouter } from "next/navigation";
 
 export default function ProfilsPage() {
-  const [search, setSearch] = useState("");
-  const [shareData, setShareData] = useState(true);
+  const { user, setUser } = useUserMode();
+  const router = useRouter();
 
-  const [pseudo, setPseudo] = useState("Sensei");
-  const [club, setClub] = useState("Forge Je’daii");
+  useEffect(() => {
+    if (!user) return;
+
+    setPseudo(user.name || "");
+    setClub(user.club || "");
+    setPhoto(user.photo || "");
+    setShareData(user.partage_donnees === "true");
+    setEmail(user.email || "");
+  }, [user]);
+
+  // ===== États Mon Profil =====
+  const [pseudo, setPseudo] = useState("");
+  const [club, setClub] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [shareData, setShareData] = useState(false);
+  const [email, setEmail] = useState(user?.email || "");
 
-  const users: UserProfile[] = [
-    {
-      id: 1,
-      pseudo: "Antho",
-      club: "Forge Je’daii",
-      badges: [
-        { name: "Maître Défensif", place: "Nice", date: "2024" },
-        { name: "Top 10 Saison", place: "PACA", date: "2023" },
-      ],
-    },
-    {
-      id: 2,
-      pseudo: "Romain",
-      club: "Geneva Saber",
-      badges: [{ name: "Vétéran CSC", place: "Genève", date: "2022" }],
-    },
-    {
-      id: 3,
-      pseudo: "Sensei",
-      club: "Forge Je’daii",
-    },
-  ];
+  // ===== États Annuaire =====
+  // const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
+  // const [search, setSearch] = useState("");
+  // const [currentPage, setCurrentPage] = useState(1);
+  // const usersPerPage = 6;
 
-  const filteredUsers = users
-    .filter((u) => u.pseudo.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.pseudo.localeCompare(b.pseudo));
+  // ===== Récupération des utilisateurs publics =====
+  // useEffect(() => {
+  //   const fetchPublicUsers = async () => {
+  //     try {
+  //       const res = await fetch("/api/users/public");
+  //       const data = await res.json();
+  //       setPublicUsers(data);
+  //     } catch (error) {
+  //       console.error("Erreur récupération utilisateurs publics:", error);
+  //     }
+  //   };
+  //   fetchPublicUsers();
+  // }, []);
 
+  // ===== Upload photo =====
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -59,6 +56,86 @@ export default function ProfilsPage() {
     reader.onload = () => setPhoto(reader.result as string);
     reader.readAsDataURL(file);
   };
+
+  // ===== Filtrage et Pagination =====
+  // const filteredUsers = publicUsers
+  //   .filter((u) => u.name.toLowerCase().includes(search.toLowerCase()))
+  //   .sort((a, b) => a.name.localeCompare(b.name));
+
+  // const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  // const startIndex = (currentPage - 1) * usersPerPage;
+  // const endIndex = startIndex + usersPerPage;
+  // const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+
+  // const handlePrevPage = () => {
+  //   if (currentPage > 1) setCurrentPage(currentPage - 1);
+  // };
+  // const handleNextPage = () => {
+  //   if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  // };
+
+  // ===== Sauvegarde profil =====
+  const handleSaveProfile = async () => {
+  if (!user) return;
+
+  try {
+    const res = await fetch(`/api/users/${user._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: pseudo,
+        email,
+        club,
+        partage_donnees: shareData ? "true" : "false",
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Erreur mise à jour profil");
+    }
+
+    const updatedUser = await res.json();
+
+    setUser(updatedUser);
+    alert("Profil mis à jour !");
+  } catch (error) {
+    console.error(error);
+    alert("Erreur lors de la mise à jour du profil");
+  }
+};
+
+const handleDeleteProfile = async () => {
+  if (!user) return;
+
+  const confirmed = confirm(
+    "Êtes-vous sûr de supprimer le profil ? Votre classement et l'ensemble de vos données seront supprimées."
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/api/users/${user._id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Erreur lors de la suppression du profil");
+    }
+
+    // Nettoyage local
+    setUser(null);
+
+    alert("Profil supprimé !");
+    router.push("/login"); 
+  } catch (error) {
+    console.error(error);
+    alert("Erreur lors de la suppression du profil");
+  }
+};
 
   return (
     <main className="min-h-screen max-w-6xl mx-auto p-6 space-y-10 overflow-y-auto">
@@ -100,7 +177,6 @@ export default function ProfilsPage() {
             >
               📷 Choisir une photo
             </label>
-
             <input
               id="photoUpload"
               type="file"
@@ -129,68 +205,43 @@ export default function ProfilsPage() {
                 className="w-full mt-1 bg-black border border-gray-600 rounded px-3 py-2 text-white"
               />
             </div>
+            <div>
+              <label className="text-sm text-gray-400">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full mt-1 bg-black border border-gray-600 rounded px-3 py-2 text-white"
+              />
+            </div>
           </div>
         </div>
 
-        <button
-          className="mt-6 bg-cyan-600/80 hover:bg-cyan-500 transition
-          text-white font-semibold px-6 py-2 rounded-lg"
-        >
-          💾 Enregistrer les modifications
-        </button>
-      </section>
+        <div className="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          <label className="flex items-center gap-4 text-gray-300">
+            <input
+              type="checkbox"
+              checked={shareData}
+              onChange={() => setShareData(!shareData)}
+              className="w-5 h-5 accent-purple-500"
+            />
+            Autoriser le partage de mes badges et expériences
+          </label>
 
-      {/* ================= CONFIDENTIALITÉ ================= */}
-      <section className="bg-black/40 border border-purple-400/30 rounded-xl p-6">
-        <h2 className="text-purple-400 text-xl font-bold mb-4">
-          🔒 Partage de mes données
-        </h2>
-
-        <label className="flex items-center gap-4 text-gray-300">
-          <input
-            type="checkbox"
-            checked={shareData}
-            onChange={() => setShareData(!shareData)}
-            className="w-5 h-5 accent-purple-500"
-          />
-          Autoriser le partage de mes badges et expériences
-        </label>
-      </section>
-
-      {/* ================= ANNUAIRE ================= */}
-      <section className="bg-black/40 border border-blue-400/30 rounded-xl p-6">
-        <h2 className="text-blue-400 text-xl font-bold mb-6">
-          📚 Annuaire des Profils
-        </h2>
-
-        <input
-          type="text"
-          placeholder="🔍 Rechercher un profil"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 w-full bg-black border border-gray-600 rounded px-4 py-2 text-white"
-        />
-
-        <div className="max-h-[400px] overflow-y-auto space-y-4 pr-2">
-          {filteredUsers.map((user) => (
-            <div
-              key={user.id}
-              className="border border-gray-700 rounded-lg p-4 bg-black/60"
-            >
-              <p className="font-bold text-white">{user.pseudo}</p>
-              <p className="text-sm text-gray-400">{user.club}</p>
-
-              {shareData && user.badges && (
-                <ul className="mt-3 list-disc list-inside text-sm text-gray-300">
-                  {user.badges.map((badge, index) => (
-                    <li key={index}>
-                      {badge.name} — {badge.place} ({badge.date})
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
+          <button
+            onClick={handleSaveProfile}
+            className="bg-cyan-600/80 hover:bg-cyan-500 transition
+            text-white font-semibold px-6 py-2 rounded-lg"
+          >
+            💾 Enregistrer les modifications
+          </button>
+          <button
+            onClick={handleDeleteProfile}
+            className="bg-cyan-600/80 hover:bg-cyan-500 transition
+            text-white font-semibold px-6 py-2 rounded-lg"
+          >
+            Supprimer le profil
+          </button>
         </div>
       </section>
     </main>

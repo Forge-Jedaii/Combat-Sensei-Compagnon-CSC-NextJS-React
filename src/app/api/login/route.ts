@@ -37,7 +37,10 @@ export async function POST(req: Request) {
       name: user.name,
       email: user.email,
       points: user.points,
-      achievements: user.achievements
+      achievements: user.achievements,
+      club: user.club,
+      photo: user.photo,
+      partage_donnees: user.partage_donnees
     });
   } catch (error) {
     console.error("LOGIN ERROR:", error);

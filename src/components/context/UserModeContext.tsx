@@ -8,6 +8,9 @@ interface User {
   email?: string;
   points: number;
   achievements: { _id: string }[];
+  club?: string;
+  photo?: string | null;
+  partage_donnees?: string;
 }
 
 type UserMode = "guest" | "authenticated";

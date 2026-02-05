@@ -7,6 +7,9 @@ export interface IUser extends Document {
   points: number;
   achievements: { _id: mongoose.Types.ObjectId }[];
   password : string;
+  club : string;
+  partage_donnees : string;
+  photo : string;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -19,6 +22,9 @@ const UserSchema = new Schema<IUser>({
     _id: { type: Schema.Types.ObjectId, ref: "Achievement" },
     },],
   password : { type: String, required: true },
+  club : { type: String },
+  partage_donnees : { type: String, required: true, default: "false"},
+  photo : { type : String },
 },
   {
     collection: "users",
