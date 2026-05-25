@@ -22,7 +22,7 @@ export default function OfficialRules({ onBack, embedded = false }: OfficialRule
         🎲 MODE HANDICAP
       </div>
       <p>• Handicaps aléatoires assignés avant le combat</p>
-      <p>• Types : PV réduits, attaques spéciales, restrictions</p>
+      <p>• Types : PV réduits, attaques spéciales, restrictions etc</p>
       <p>• Au moins un joueur aura toujours un handicap</p>
 
       <div className="text-purple-400 font-bold text-sm sm:text-base md:text-lg mb-2 sm:mb-3 mt-4 sm:mt-6">
