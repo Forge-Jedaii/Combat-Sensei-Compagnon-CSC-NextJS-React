@@ -65,7 +65,7 @@ export async function login(formData: FormData) {
     authRedirect("/login", "error", message);
   }
 
-  redirect(next === "/" ? "/archives" : next);
+  redirect(next);
 }
 
 export async function sendMagicLink(formData: FormData) {
@@ -79,7 +79,7 @@ export async function sendMagicLink(formData: FormData) {
     email,
     options: {
       shouldCreateUser: false,
-      emailRedirectTo: `${getOrigin()}/auth/callback?next=${encodeURIComponent(next === "/" ? "/archives" : next)}`,
+      emailRedirectTo: `${getOrigin()}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 

@@ -3,20 +3,49 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUserMode } from "@/components/context/UserModeContext";
-import type { AchievementRow, RarityRow } from "@/types/database.types";
+import { createClient } from "@/lib/supabase/client";
+import type { AchievementRow, BadgeRow, Json, RarityRow } from "@/types/database.types";
 
 /* ================= TYPES ================= */
 
-type Achievement = Pick<AchievementRow, "id" | "name" | "description" | "icon" | "is_secret"> & {
+type Achievement = Pick<AchievementRow, "id" | "name" | "description" | "icon" | "is_secret" | "condition_type" | "condition_value" | "condition_metadata" | "points_reward"> & {
   rarities: Pick<RarityRow, "id" | "name" | "category">[];
 };
+
+const metricLabels: Record<string, string> = {
+  "ranking.victories": "victoires",
+  "ranking.matches_played": "matchs joués",
+  "ranking.longest_win_streak": "victoires consécutives",
+  "ranking.perfect_games": "combats parfaits",
+  "ranking.score": "points CSC",
+  "combat.kills": "kills",
+  "combat.touches": "touches",
+  "combat.damage_dealt": "dégâts infligés",
+};
+
+function ruleDescription(metadata: Json, fallbackType: string, fallbackValue: number | null): string {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return fallbackValue ? `Atteindre ${fallbackValue} ${fallbackType}.` : "Condition définie par le règlement CSC.";
+  }
+  const rule = metadata.rule;
+  if (!rule || typeof rule !== "object" || Array.isArray(rule)) {
+    return fallbackValue ? `Atteindre ${fallbackValue} ${fallbackType}.` : "Condition définie par le règlement CSC.";
+  }
+  const metric = typeof rule.metric === "string" ? metricLabels[rule.metric] ?? rule.metric.replaceAll(".", " · ") : null;
+  const value = typeof rule.value === "number" ? rule.value : null;
+  if (metric && value !== null) return `Atteindre ${value} ${metric}.`;
+  if (Array.isArray(rule.rules)) return `Remplir ${rule.rules.length} conditions (${rule.combinator === "any" ? "au moins une" : "toutes"}).`;
+  return "Condition définie par le règlement CSC.";
+}
 
 /* ================= PAGE ================= */
 
 export default function AchievementsPage() {
   const { user } = useUserMode();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [badges, setBadges] = useState<BadgeRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selectedAchievement, setSelectedAchievement] =
     useState<Achievement | null>(null);
 
@@ -24,12 +53,21 @@ export default function AchievementsPage() {
     const controller = new AbortController();
     const fetchAchievements = async () => {
       try {
-        const res = await fetch("/api/achievements?pageSize=100", { cache: "no-store", signal: controller.signal });
+        const [res, badgeResult] = await Promise.all([
+          fetch("/api/achievements?pageSize=100", { cache: "no-store", signal: controller.signal }),
+          createClient().from("badges").select("*").eq("is_active", true).order("category").order("name"),
+        ]);
         const payload = await res.json();
         if (!res.ok) throw new Error(payload.error?.message ?? "Erreur API");
+        if (badgeResult.error) throw new Error(badgeResult.error.message);
         setAchievements(payload.data.items);
+        setBadges(badgeResult.data ?? []);
+        setErrorMessage(null);
       } catch (error) {
-        if (!controller.signal.aborted) console.error("Failed to fetch achievements", error);
+        if (!controller.signal.aborted) {
+          console.error("Failed to fetch achievements", error);
+          setErrorMessage(error instanceof Error ? error.message : "Le catalogue n’a pas pu être chargé.");
+        }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -97,17 +135,20 @@ export default function AchievementsPage() {
       </section>
 
       {/* ACHIEVEMENTS GRID */}
+      {errorMessage && <p role="alert" className="rounded-xl border border-red-500/40 bg-red-950/30 p-4 text-red-300">{errorMessage}</p>}
+      {!errorMessage && !achievements.length && <p className="text-center text-gray-400">Aucun achievement disponible.</p>}
       <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {achievements.map((achievement) => {
           const userAchievement = user?.achievements.find((item) => item._id === achievement.id);
           const isUnlocked = userAchievement?.unlocked ?? false;
 
           return (
-            <div
+            <button
+              type="button"
               key={achievement.id}
               onClick={() => setSelectedAchievement(achievement)}
               className={`
-                cursor-pointer rounded-xl p-4 border
+                cursor-pointer rounded-xl p-4 border text-left
                 ${isUnlocked ? "border-green-400 bg-black/50" : "border-gray-700 bg-black/30 opacity-60"}
                 hover:opacity-100 transition-all
               `}
@@ -122,6 +163,10 @@ export default function AchievementsPage() {
 
               <p className="text-xs text-gray-400 text-center">
                 {achievement.is_secret && !isUnlocked ? "Achievement secret" : achievement.description}
+              </p>
+
+              <p className="mt-2 text-center text-[11px] text-cyan-200/80">
+                {ruleDescription(achievement.condition_metadata, achievement.condition_type, achievement.condition_value)}
               </p>
 
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-800" aria-label={`Progression ${userAchievement?.progress ?? 0}%`}>
@@ -140,9 +185,30 @@ export default function AchievementsPage() {
                   </span>
                 ))}
               </div>
-            </div>
+            </button>
           );
         })}
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold text-purple-300">Badges</h2>
+          <p className="text-sm text-gray-400">Tous les badges disponibles, même lorsqu’ils ne sont pas encore débloqués.</p>
+        </div>
+        {!badges.length && <p className="text-gray-400">Aucun badge disponible.</p>}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {badges.map((badge) => {
+            const owned = user?.badges.some((item) => item.id === badge.id) ?? false;
+            const progress = user?.badges.find((item) => item.id === badge.id)?.progress ?? 0;
+            return <article key={badge.id} className={`rounded-xl border p-4 text-center ${owned ? "border-purple-400 bg-purple-950/30" : "border-gray-700 bg-black/30 opacity-55 grayscale"}`}>
+              <div className="text-4xl" aria-hidden="true">{badge.icon}</div>
+              <h3 className="mt-2 font-bold text-white">{badge.name}</h3>
+              <p className="mt-1 text-xs text-gray-300">{badge.description}</p>
+              <p className="mt-2 text-[11px] uppercase tracking-wide text-purple-300">{badge.rarity} · {badge.category}</p>
+              <p className="mt-2 text-xs text-gray-400">{owned ? `Débloqué · ${progress}%` : "Verrouillé"}</p>
+            </article>;
+          })}
+        </div>
       </section>
 
       {/* DÉTAIL */}

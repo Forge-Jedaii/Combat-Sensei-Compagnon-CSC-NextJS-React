@@ -166,11 +166,11 @@ export default function CombatArea({
               />
             ) : "∞"}
           </div>
-          <button onClick={() => setPaused((p) => !p)} className="w-10 h-10 flex justify-center items-center bg-cyber-blue/20 border border-cyber-blue text-cyber-blue rounded-full">
+          <button type="button" aria-label={paused ? "Reprendre le chronomètre" : "Mettre le chronomètre en pause"} onClick={() => setPaused((p) => !p)} className="w-10 h-10 flex justify-center items-center bg-cyber-blue/20 border border-cyber-blue text-cyber-blue rounded-full">
             {paused ? "▶️" : "⏸"}
           </button>
-          <button onClick={() => setResetKey((k) => k + 1)} className="w-10 h-10 flex justify-center items-center bg-cyber-purple/20 border border-cyber-purple text-cyber-purple rounded-full">🔄</button>
-          <button onClick={() => onEnd("")} className="w-10 h-10 flex justify-center items-center bg-cyber-navy/20 border border-cyber-navy text-cyber-navy rounded-full">🏠</button>
+          <button type="button" aria-label="Réinitialiser le chronomètre" onClick={() => setResetKey((k) => k + 1)} className="w-10 h-10 flex justify-center items-center bg-cyber-purple/20 border border-cyber-purple text-cyber-purple rounded-full">🔄</button>
+          <button type="button" aria-label="Quitter le combat" onClick={() => onEnd("")} className="w-10 h-10 flex justify-center items-center bg-cyber-navy/20 border border-cyber-navy text-cyber-navy rounded-full">🏠</button>
         </div>
       </div>
 

@@ -13,7 +13,7 @@ export default async function LoginPage({
   return (
     <AuthShell title="Connexion" subtitle="Accédez à votre espace Combat Sensei">
       <form action={login} className="space-y-4">
-        <input type="hidden" name="next" value={params.next ?? "/archives"} />
+        <input type="hidden" name="next" value={params.next ?? "/"} />
         <AuthNotice error={params.error} message={params.message} />
         <EmailField />
         <PasswordField />
@@ -28,7 +28,7 @@ export default async function LoginPage({
         <span className="h-px flex-1 bg-gray-700" />ou<span className="h-px flex-1 bg-gray-700" />
       </div>
       <form action={sendMagicLink} className="space-y-4">
-        <input type="hidden" name="next" value={params.next ?? "/archives"} />
+        <input type="hidden" name="next" value={params.next ?? "/"} />
         <EmailField />
         <SubmitButton>Recevoir un lien de connexion</SubmitButton>
       </form>

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useUserMode } from "@/components/context/UserModeContext";
+import { logout } from "@/app/auth/actions";
 
 export type SelectableMode =
   | "duel"
@@ -77,7 +78,7 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [activeRule, setActiveRule] = useState<"csc" | "fj1vs1">("csc");
 
-  const { mode } = useUserMode(); // "guest" | "authenticated"
+  const { mode, user } = useUserMode(); // "guest" | "authenticated"
   const isGuest = mode === "guest";
 
   const router = useRouter();
@@ -97,9 +98,16 @@ export default function ModeSelection({ onSelect }: ModeSelectionProps) {
         <p className="text-gray-300 text-lg sm:text-xl font-orbitron">
           Combat Sensei Compagnon
         </p>
-        <p className="text-sm text-purple-400 font-orbitron">
-          Mode : {isGuest ? "Invité" : "Connecté"}
-        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3 text-sm font-orbitron">
+          <p className="text-purple-400">Mode : {isGuest ? "Invité" : `Connecté · ${user?.name ?? "Membre"}`}</p>
+          {!isGuest && (
+            <form action={logout}>
+              <button type="submit" className="rounded-lg border border-red-400/50 px-3 py-1.5 text-red-300 hover:bg-red-500/10">
+                Se déconnecter
+              </button>
+            </form>
+          )}
+        </div>
       </header>
 
       {/* ===== MODES ===== */}
