@@ -56,7 +56,7 @@ if (!user) {
   const invitation = await requireSuccess(
     supabase.auth.admin.inviteUserByEmail(ADMIN_EMAIL, {
       data: { display_name: ADMIN_DISPLAY_NAME },
-      redirectTo: `${environment.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/auth/callback?next=/auth/verified`,
+      redirectTo: `${environment.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")}/auth/callback?next=/reset-password`,
     }),
   );
   user = invitation.user;

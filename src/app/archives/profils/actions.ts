@@ -88,6 +88,28 @@ export async function uploadAvatar(formData: FormData) {
   profileRedirect("message", "Avatar mis à jour.");
 }
 
+export async function updatePassword(formData: FormData) {
+  const password = field(formData, "password");
+  const confirmation = field(formData, "passwordConfirmation");
+
+  if (password.length < 8) {
+    profileRedirect("error", "Le mot de passe doit contenir au moins 8 caractères.");
+  }
+  if (password !== confirmation) {
+    profileRedirect("error", "Les mots de passe ne correspondent pas.");
+  }
+
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) redirect("/login?next=/archives/profils");
+
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) profileRedirect("error", "Le mot de passe n’a pas pu être modifié.");
+
+  await supabase.auth.signOut();
+  redirect("/login?message=Mot+de+passe+modifié.+Reconnectez-vous.");
+}
+
 export async function deleteAccount(formData: FormData) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();

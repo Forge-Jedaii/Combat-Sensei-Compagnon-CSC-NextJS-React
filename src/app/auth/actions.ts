@@ -46,6 +46,28 @@ export async function login(formData: FormData) {
   redirect(next === "/" ? "/archives" : next);
 }
 
+export async function sendMagicLink(formData: FormData) {
+  const email = value(formData, "email").toLowerCase();
+  const next = getSafeRedirectPath(value(formData, "next"));
+
+  if (!isEmail(email)) authRedirect("/login", "error", "Adresse email invalide.");
+
+  const supabase = await createClient();
+  await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      shouldCreateUser: false,
+      emailRedirectTo: `${getOrigin()}/auth/callback?next=${encodeURIComponent(next === "/" ? "/archives" : next)}`,
+    },
+  });
+
+  authRedirect(
+    "/login",
+    "message",
+    "Si un compte actif correspond à cette adresse, un lien de connexion a été envoyé.",
+  );
+}
+
 export async function register(formData: FormData) {
   const displayName = value(formData, "displayName");
   const email = value(formData, "email").toLowerCase();

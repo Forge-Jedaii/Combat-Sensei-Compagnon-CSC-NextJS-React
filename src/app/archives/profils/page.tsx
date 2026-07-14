@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { deleteAccount, updateEmail, updateProfile, uploadAvatar } from "./actions";
+import { deleteAccount, updateEmail, updatePassword, updateProfile, uploadAvatar } from "./actions";
 import { logout } from "@/app/auth/actions";
 import { ArchiveService, calculateFighterStatistics } from "@/services/archive.service";
 
@@ -123,6 +123,15 @@ export default async function ProfilePage({
         <form action={updateEmail} className="flex flex-col gap-3 sm:flex-row">
           <input className={inputClass} name="email" type="email" defaultValue={authData.user.email} required />
           <button className="whitespace-nowrap rounded-lg bg-purple-600 px-5 py-2.5 font-bold hover:bg-purple-500">Modifier l’email</button>
+        </form>
+      </section>
+
+      <section className="rounded-2xl border border-purple-400/30 bg-black/60 p-6">
+        <h2 className="mb-4 text-xl font-bold text-purple-300">Mot de passe</h2>
+        <form action={updatePassword} className="grid gap-3 sm:grid-cols-2">
+          <input className={inputClass} name="password" type="password" minLength={8} autoComplete="new-password" placeholder="Nouveau mot de passe" required />
+          <input className={inputClass} name="passwordConfirmation" type="password" minLength={8} autoComplete="new-password" placeholder="Confirmer le mot de passe" required />
+          <button className="rounded-lg bg-purple-600 px-5 py-2.5 font-bold hover:bg-purple-500 sm:col-span-2">Modifier le mot de passe</button>
         </form>
       </section>
 

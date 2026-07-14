@@ -1,7 +1,7 @@
 import Link from "next/link";
 import AuthShell from "@/components/auth/AuthShell";
 import { AuthNotice, EmailField, PasswordField, SubmitButton } from "@/components/auth/AuthFields";
-import { login } from "@/app/auth/actions";
+import { login, sendMagicLink } from "@/app/auth/actions";
 
 export default async function LoginPage({
   searchParams,
@@ -23,6 +23,14 @@ export default async function LoginPage({
           </Link>
         </div>
         <SubmitButton>Se connecter</SubmitButton>
+      </form>
+      <div className="my-5 flex items-center gap-3 text-xs text-gray-500">
+        <span className="h-px flex-1 bg-gray-700" />ou<span className="h-px flex-1 bg-gray-700" />
+      </div>
+      <form action={sendMagicLink} className="space-y-4">
+        <input type="hidden" name="next" value={params.next ?? "/archives"} />
+        <EmailField />
+        <SubmitButton>Recevoir un lien de connexion</SubmitButton>
       </form>
       <p className="mt-5 text-center text-sm text-gray-400">
         Nouveau membre ?{" "}
