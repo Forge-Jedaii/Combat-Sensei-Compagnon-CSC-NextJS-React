@@ -1,0 +1,17 @@
+project_id = "combat-sensei-compagnon"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback"]
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+double_confirm_changes = true
+secure_password_change = true
+max_frequency = "1s"
+
+[functions.process-email-outbox]
+verify_jwt = false

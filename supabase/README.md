@@ -28,3 +28,13 @@ npx supabase gen types typescript --linked > src/types/database.types.ts
 
 Do not run the generated-type command until the placeholder file can safely be
 replaced and the frontend migration begins.
+
+## Email delivery
+
+The reliable Resend outbox worker is implemented by migration
+`20260714220000_email_outbox_worker.sql` and Edge Function
+`functions/process-email-outbox`.
+
+See [`../docs/auth-email-environments.md`](../docs/auth-email-environments.md)
+for local/production Auth differences, required secrets, deployment, Cron and
+operational recovery.

@@ -4,6 +4,7 @@ export type AppRole = "member" | "moderator" | "admin";
 export type MatchMode = "duel" | "official_duel" | "handicap" | "tournament" | "highlander" | "battle_royale";
 export type MatchStatus = "draft" | "active" | "completed" | "cancelled";
 export type MatchResultType = "health" | "points" | "time" | "disqualification" | "draw" | "forfeit" | "other";
+export type EmailDeliveryStatus = "queued" | "processing" | "retry" | "sent" | "failed";
 
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row & Record<string, unknown>;
@@ -82,7 +83,8 @@ export type TournamentParticipantRow = { id: string; tournament_id: string; user
 export type MatchFaultRow = { id: string; match_id: string; participant_id: string; assigned_by: string | null; type: "yellow" | "red" | "black"; reason_code: string; reason_label: string; penalty: "warning" | "health" | "points" | "disqualification"; health_delta: number; score_delta: number; occurred_at: string; round_number: number | null; metadata: Json };
 export type MatchEventRow = { id: number; match_id: string; actor_id: string | null; participant_id: string | null; event_type: string; payload: Json; occurred_at: string };
 export type RoleAuditRow = { id: number; target_user_id: string; role: AppRole; action: "grant" | "revoke"; actor_id: string | null; occurred_at: string };
-export type EmailOutboxRow = { id: number; user_id: string; template: "registration_pending" | "account_activated" | "account_rejected" | "account_suspended"; payload: Json; created_at: string; sent_at: string | null; last_error: string | null };
+export type EmailOutboxRow = { id: number; user_id: string; template: "registration_pending" | "account_activated" | "account_rejected" | "account_suspended"; payload: Json; status: EmailDeliveryStatus; attempt_count: number; max_attempts: number; next_attempt_at: string; last_attempt_at: string | null; locked_at: string | null; locked_by: string | null; provider_message_id: string | null; created_at: string; updated_at: string; sent_at: string | null; last_error: string | null };
+export type EmailDeliveryAttemptRow = { id: number; outbox_id: number; attempt_number: number; worker_id: string; outcome: "sent" | "retry" | "failed"; provider: string; provider_message_id: string | null; http_status: number | null; error_code: string | null; error_message: string | null; occurred_at: string };
 export type PublicProfileRow = { id: string; display_name: string; club_id: string | null; club_name: string | null; bio: string | null; avatar_path: string | null; last_active_at: string | null; created_at: string };
 export type LeaderboardRow = { user_id: string; display_name: string; club_id: string | null; club_name: string | null; mode: MatchMode | null; score: number; victories: number; defeats: number; draws: number; matches_played: number; win_rate: number; longest_win_streak: number; perfect_games: number; last_match_at: string | null; rank_position: number };
 export type MatchSummaryRow = { id: string; public_id: number; mode: MatchMode; status: MatchStatus; result_type: MatchResultType | null; tournament_id: string | null; event_name: string | null; started_at: string | null; ended_at: string | null; duration_seconds: number | null; rules_version: string; participants: Json };
@@ -110,7 +112,8 @@ export type Database = {
       match_faults: Table<MatchFaultRow, Omit<MatchFaultRow, "id" | "occurred_at">>;
       match_events: Table<MatchEventRow, Omit<MatchEventRow, "id" | "occurred_at">>;
       role_audit_log: Table<RoleAuditRow, Omit<RoleAuditRow, "id" | "occurred_at">>;
-      email_outbox: Table<EmailOutboxRow, Omit<EmailOutboxRow, "id" | "created_at">>;
+      email_outbox: Table<EmailOutboxRow, Omit<EmailOutboxRow, "id" | "created_at" | "updated_at">>;
+      email_delivery_attempts: Table<EmailDeliveryAttemptRow, Omit<EmailDeliveryAttemptRow, "id" | "occurred_at">>;
     };
     Views: {
       public_profiles: { Row: PublicProfileRow; Relationships: [] };
@@ -133,6 +136,9 @@ export type Database = {
       create_tournament_workflow: { Args: { target_name: string; target_type: "single_elimination" | "round_robin"; target_game_mode: MatchMode; target_duration_seconds: number; target_participants: Json; target_workflow: Json }; Returns: Json };
       save_tournament_progress: { Args: { target_tournament_id: string; target_workflow: Json; target_round: number; target_position: number; target_player_one_key: string; target_player_two_key: string; target_winner_key: string; target_score_one?: number; target_score_two?: number }; Returns: Json };
       set_profile_status: { Args: { target_user_id: string; target_status: string }; Returns: ProfileRow };
+      claim_email_outbox: { Args: { target_worker_id: string; target_batch_size?: number }; Returns: Pick<EmailOutboxRow, "id" | "user_id" | "template" | "payload" | "attempt_count" | "max_attempts">[] };
+      complete_email_outbox: { Args: { target_outbox_id: number; target_worker_id: string; target_provider_message_id: string; target_http_status?: number }; Returns: undefined };
+      fail_email_outbox: { Args: { target_outbox_id: number; target_worker_id: string; target_http_status: number | null; target_error_code: string; target_error_message: string; target_retry_after_seconds?: number | null }; Returns: undefined };
       grant_app_role: { Args: { target_user_id: string; target_role: AppRole }; Returns: undefined };
       revoke_app_role: { Args: { target_user_id: string; target_role: AppRole }; Returns: undefined };
     };
@@ -141,6 +147,7 @@ export type Database = {
       match_mode: MatchMode;
       match_status: MatchStatus;
       match_result_type: MatchResultType;
+      email_delivery_status: EmailDeliveryStatus;
     };
     CompositeTypes: Record<string, never>;
   };

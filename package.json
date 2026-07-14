@@ -7,7 +7,10 @@
     "build": "next build --turbopack",
     "start": "next start",
     "vercel-build": "next build",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:register": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-register-workflow.ps1",
+    "test:register:autoconfirm": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-register-autoconfirm.ps1",
+    "test:register:node": "node scripts/test-register-workflow.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.10.0",
