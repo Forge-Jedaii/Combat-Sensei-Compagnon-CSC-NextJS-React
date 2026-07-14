@@ -5,7 +5,10 @@ import Timer from "../ui/Timer";
 import UndoHit from "../ui/UndoHit";
 import FaultSystem from "./FaultSystem";
 import { toPng } from "html-to-image";
-import { processCombatResult } from "@/lib/game/rankings";
+import { usePersistentCombat } from "@/hooks/usePersistentCombat";
+import type { PersistedCombat } from "@/repositories/combat-workflow.repository";
+import type { MatchMode, MatchResultType } from "@/types/database.types";
+import { useUserMode } from "@/components/context/UserModeContext";
 
 type CombatAreaProps = {
   player1: string;
@@ -20,6 +23,12 @@ type CombatAreaProps = {
   player2HP?: number;
   onPlayer2HPChange?: (hp: number) => void;
   onCombatEnd?: (winner: string) => void;
+  onResult?: (result: { winner: string; player1HP: number; player2HP: number }) => void;
+  persistenceMode?: MatchMode;
+  eventName?: string;
+  tournamentId?: string;
+  onPersistedResult?: (result: PersistedCombat) => void;
+  persistenceSettings?: import("@/types/database.types").Json;
 };
 
 type LastHit = {
@@ -38,25 +47,37 @@ export default function CombatArea({
   onPlayer1HPChange,
   player2HP,
   onPlayer2HPChange,
+  onResult,
+  persistenceMode,
+  eventName,
+  tournamentId,
+  onPersistedResult,
+  persistenceSettings,
 }: CombatAreaProps) {
   const [hp1, setHp1] = useState(10);
   const [hp2, setHp2] = useState(10);
   const [winner, setWinner] = useState<string | null>(null);
+  const [winnerPosition, setWinnerPosition] = useState<1 | 2 | null>(null);
+  const [completionType, setCompletionType] = useState<MatchResultType>("health");
   const [hitHistory, setHitHistory] = useState<LastHit[]>([]);
 
   // Timer
   const [paused, setPaused] = useState(true);
   const [resetKey, setResetKey] = useState(0);
+  const { mode: userMode } = useUserMode();
+  const persistentMode = userMode === "authenticated" ? persistenceMode : undefined;
+  const persistence = usePersistentCombat({ duration, eventName, mode: persistentMode, player1, player1StartingHealth: player1HP, player2, player2StartingHealth: player2HP, settings: persistenceSettings, tournamentId });
+  const completionStarted = React.useRef(false);
 
   // Gestion des touches
   const handleHit = (target: "left" | "right") => {
-    if (winner) return;
+    if (winner || (persistentMode && !persistence.combat)) return;
     setHitHistory((prev) => {
       const newHistory = [...prev, { target, previousHp1: hp1, previousHp2: hp2 }];
       return newHistory.slice(-2);
     });
-    if (target === "left") setHp1((prev) => Math.max(prev - 1, 0));
-    else setHp2((prev) => Math.max(prev - 1, 0));
+    if (target === "left") setHp1((prev) => { const next = Math.max(prev - 1, 0); void persistence.recordHealth(1, next, "hit", { damage: 1 }); return next; });
+    else setHp2((prev) => { const next = Math.max(prev - 1, 0); void persistence.recordHealth(2, next, "hit", { damage: 1 }); return next; });
   };
 
   // Sync highlander
@@ -69,6 +90,7 @@ export default function CombatArea({
   }, [hp2, mode, onPlayer2HPChange]);
 
   const initialized = React.useRef(false);
+  const persistenceInitialized = React.useRef(false);
   useEffect(() => {
     if (!initialized.current && mode === "highlander") {
       if (typeof player1HP === "number") setHp1(player1HP);
@@ -78,15 +100,37 @@ export default function CombatArea({
   }, [mode, player1HP, player2HP]);
 
   useEffect(() => {
+    if (!persistence.combat || persistenceInitialized.current) return;
+    const [first, second] = persistence.combat.participants;
+    if (typeof first?.final_health === "number") setHp1(first.final_health);
+    if (typeof second?.final_health === "number") setHp2(second.final_health);
+    persistenceInitialized.current = true;
+  }, [persistence.combat]);
+
+  useEffect(() => {
     if (winner) return;
     if (hp1 === 0) {
       setWinner(player2);
+      setWinnerPosition(2);
+      setCompletionType("health");
+      onResult?.({ winner: player2, player1HP: hp1, player2HP: hp2 });
       if (mode === "highlander") onEnd(player2);
     } else if (hp2 === 0) {
       setWinner(player1);
+      setWinnerPosition(1);
+      setCompletionType("health");
+      onResult?.({ winner: player1, player1HP: hp1, player2HP: hp2 });
       if (mode === "highlander") onEnd(player1);
     }
-  }, [hp1, hp2, winner, mode, onEnd, player1, player2]);
+  }, [hp1, hp2, winner, mode, onEnd, onResult, player1, player2]);
+
+  useEffect(() => {
+    if (!winner || completionStarted.current || !persistence.combat) return;
+    completionStarted.current = true;
+    void persistence.finish(winnerPosition, completionType).then((result) => {
+      if (result) onPersistedResult?.(result);
+    });
+  }, [completionType, onPersistedResult, persistence, winner, winnerPosition]);
 
   const handleUndo = () => {
     if (hitHistory.length === 0 || winner) return;
@@ -94,6 +138,8 @@ export default function CombatArea({
     setHp1(lastState.previousHp1);
     setHp2(lastState.previousHp2);
     setWinner(null);
+    void persistence.recordHealth(1, lastState.previousHp1, "undo", { target: lastState.target });
+    void persistence.recordHealth(2, lastState.previousHp2, "undo", { target: lastState.target });
     setHitHistory((prev) => prev.slice(0, -1));
   };
 
@@ -109,8 +155,12 @@ export default function CombatArea({
                 duration={duration}
                 paused={paused}
                 onEnd={() => {
-                  setWinner("⏳ Temps écoulé");
-                  if (mode === "highlander") onEnd("⏳ Temps écoulé");
+                  const timeWinner = hp1 === hp2 ? "Égalité" : hp1 > hp2 ? player1 : player2;
+                  setWinner(timeWinner);
+                  setWinnerPosition(hp1 === hp2 ? null : hp1 > hp2 ? 1 : 2);
+                  setCompletionType(hp1 === hp2 ? "draw" : "time");
+                  onResult?.({ winner: timeWinner, player1HP: hp1, player2HP: hp2 });
+                  if (mode === "highlander") onEnd(timeWinner);
                 }}
                 compact
               />
@@ -138,16 +188,28 @@ export default function CombatArea({
       <FaultSystem 
         player1={player1}
         player2={player2}
-        onFaultPenalty={(target, penaltyType, winner) => {
+        onFaultPenalty={(target, penaltyType, winner, fault) => {
+          void persistence.recordFault(target === "left" ? 1 : 2, {
+            healthDelta: penaltyType === "hp" ? -1 : 0,
+            penalty: penaltyType === "hp" ? "health" : "disqualification",
+            reasonCode: fault.reason,
+            reasonLabel: fault.reason,
+            type: fault.type === "jaune" ? "yellow" : fault.type === "rouge" ? "red" : "black",
+          });
           if (penaltyType === "hp") {
             if (target === "left") setHp1((h) => Math.max(h - 1, 0));
             else setHp2((h) => Math.max(h - 1, 0));
           } else if (penaltyType === "disqualification") {
-            setWinner(winner || (target === "left" ? player2 : player1));
-            onEnd(winner || (target === "left" ? player2 : player1));
+            const resultWinner = winner || (target === "left" ? player2 : player1);
+            setWinner(resultWinner);
+            setWinnerPosition(target === "left" ? 2 : 1);
+            setCompletionType("disqualification");
+            onResult?.({ winner: resultWinner, player1HP: hp1, player2HP: hp2 });
+            if (mode === "highlander") onEnd(resultWinner);
           }
         }}
       />
+      {persistence.error && <p role="alert" className="bg-red-950/80 p-2 text-center text-xs text-red-300">{persistence.error}</p>}
 
       {/* Undo */}
       <div className="flex justify-center p-3 bg-black/20 border-t border-cyber-blue/30">

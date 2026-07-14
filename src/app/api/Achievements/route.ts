@@ -1,21 +1,7 @@
-import connectToDatabase from "@/lib/mongodb";
-import Achievement from "@/models/Achievement";
-import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { pagination } from "@/lib/api/pagination";
+import { jsonData, withApiHandler } from "@/lib/api/responses";
+import { AchievementService } from "@/services";
 
-// POST /api/Achievements
-export async function POST(req: Request) {
-  await connectToDatabase(); // 👈 connexion ici
-
-  const body = await req.json();
-  const achievement = await Achievement.create(body);
-
-  return NextResponse.json(achievement, { status: 201 });
-}
-
-// GET /api/Achievements
-export async function GET() {
-  await connectToDatabase();
-
-  const achievements = await Achievement.find();
-  return NextResponse.json(achievements);
-}
+export async function GET(request: Request) { return withApiHandler(async () => { const p = pagination(request.url); const result = await new AchievementService(await createClient()).catalog(p.from, p.to); return jsonData({ ...result, page: p.page, pageSize: p.pageSize }); }); }
+export async function POST(request: Request) { return withApiHandler(async () => jsonData(await new AchievementService(await createClient()).createFrom(await request.json()), 201)); }

@@ -8,6 +8,7 @@ interface CombatData {
   actualDuration: string;
   arbitre: string;
   combatId: string;
+  verificationHash: string;
   fighter1: {
     name: string;
     finalHP: number;
@@ -37,7 +38,6 @@ export default function OfficialSheet({
 }: OfficialSheetProps) {
   const [currentDate, setCurrentDate] = useState("");
   const [currentTime, setCurrentTime] = useState("");
-  const [verificationHash, setVerificationHash] = useState("");
   const [digitalTimestamp, setDigitalTimestamp] = useState("");
 
   useEffect(() => {
@@ -46,9 +46,6 @@ export default function OfficialSheet({
     setCurrentTime(now.toLocaleTimeString('fr-FR'));
     setDigitalTimestamp(now.toISOString());
     
-    // Générer un hash de vérification simulé
-    const hash = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    setVerificationHash(hash.toUpperCase());
   }, []);
 
   const downloadSheet = () => {
@@ -75,29 +72,8 @@ export default function OfficialSheet({
   if (!isOpen) return null;
 
   // Données par défaut si aucune donnée de combat n'est fournie
-  const defaultData = {
-    event: "Tournoi d'Entraînement",
-    duration: "5 minutes",
-    actualDuration: "3min 45s",
-    arbitre: "Maître Yoda",
-    combatId: "JD-2024-001",
-    fighter1: {
-      name: "Padawan Luke",
-      finalHP: 7,
-      damage: 3,
-      faults: 1
-    },
-    fighter2: {
-      name: "Padawan Leia",
-      finalHP: 4,
-      damage: 6,
-      faults: 0
-    },
-    winner: "Padawan Leia",
-    result: "Victoire par points"
-  };
-
-  const data = combatData || defaultData;
+  if (!combatData) return null;
+  const data = combatData;
 
   return (
     <div className="fixed inset-0 bg-black/95 flex justify-center items-center z-50 backdrop-blur-lg p-2 sm:p-4 md:p-6 overflow-y-auto">
@@ -250,13 +226,13 @@ export default function OfficialSheet({
           </div>
         </div>
 
-        {/* Digital Verification */}
+        {/* Local document metadata */}
         <div className="border-2 border-blue-600 p-4 mb-6 bg-blue-50">
-          <h3 className="font-bold text-lg mb-3 text-center">🔐 VÉRIFICATION NUMÉRIQUE 🔐</h3>
+          <h3 className="font-bold text-lg mb-3 text-center">RÉFÉRENCE DU DOCUMENT</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <span className="font-semibold">Hash de Vérification:</span><br />
-              <code className="bg-gray-200 p-1 rounded text-xs break-all">{verificationHash}</code>
+              <span className="font-semibold">Identifiant local:</span><br />
+              <code className="bg-gray-200 p-1 rounded text-xs break-all">{data.verificationHash}</code>
             </div>
             <div>
               <span className="font-semibold">Timestamp:</span><br />
@@ -264,7 +240,7 @@ export default function OfficialSheet({
             </div>
           </div>
           <p className="text-xs mt-2 text-center text-gray-600">
-            Ce document est authentifié par signature numérique et peut être vérifié via le système Forge Je&apos;daii
+            Document généré à partir du combat enregistré. Le hash est calculé côté serveur lors de la finalisation.
           </p>
         </div>
 

@@ -1,8 +1,49 @@
-export default function ParametresPage() {
-  return (
-    <div className="p-6 text-white">
-      <h1 className="text-2xl font-bold">Paramètres</h1>
-      <p className="opacity-70">Page en cours de construction</p>
-    </div>
-  );
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { changeProfileStatus, changeRole, createClub, deleteClub, toggleAchievement, toggleBadge } from "./actions";
+
+const panel = "rounded-xl border border-gray-700 bg-black/50 p-5";
+const input = "rounded border border-gray-600 bg-black px-2 py-1.5 text-sm text-white";
+
+export default async function DatabaseSettingsPage() {
+  const client = await createClient();
+  const { data: auth } = await client.auth.getUser();
+  if (!auth.user) redirect("/login?next=/archives/parametres");
+  const { data: adminRole } = await client.from("user_roles").select("role").eq("user_id", auth.user.id).eq("role", "admin").maybeSingle();
+  if (!adminRole) redirect("/archives");
+
+  const [profilesResult, rolesResult, clubsResult, achievementsResult, badgesResult, auditResult, outboxResult, matchesCount, tournamentsCount] = await Promise.all([
+    client.from("profiles").select("id,display_name,status,club_id,created_at").order("created_at", { ascending: false }),
+    client.from("user_roles").select("user_id,role,granted_at"),
+    client.from("clubs").select("id,name,slug,city,is_verified").order("name"),
+    client.from("achievements").select("id,name,is_active,is_secret,points_reward").order("name"),
+    client.from("badges").select("id,name,rarity,is_active").order("name"),
+    client.from("role_audit_log").select("*").order("occurred_at", { ascending: false }).limit(100),
+    client.from("email_outbox").select("id,user_id,template,created_at,sent_at,last_error").order("created_at", { ascending: false }).limit(100),
+    client.from("matches").select("id", { count: "exact", head: true }),
+    client.from("tournaments").select("id", { count: "exact", head: true }),
+  ]);
+  const profiles = profilesResult.data ?? [];
+  const roles = rolesResult.data ?? [];
+  const authUsers = await createAdminClient().auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const emailById = new Map((authUsers.data.users ?? []).map((user) => [user.id, user.email ?? "—"]));
+  const pending = profiles.filter((profile) => profile.status === "pending");
+
+  return <main className="mx-auto min-h-screen max-w-7xl space-y-7 p-6 text-white">
+    <div className="flex items-center justify-between"><div><h1 className="text-3xl font-bold text-cyan-300">Paramètres DB</h1><p className="text-sm text-gray-400">Administration Supabase et PostgreSQL</p></div><Link href="/archives" className="text-cyan-300 hover:underline">← Archives</Link></div>
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{[["Utilisateurs", profiles.length], ["En attente", pending.length], ["Matchs", matchesCount.count ?? 0], ["Tournois", tournamentsCount.count ?? 0], ["Emails en attente", (outboxResult.data ?? []).filter((item) => !item.sent_at).length]].map(([label,value]) => <div className={panel} key={label}><p className="text-xs text-gray-400">{label}</p><p className="text-2xl font-bold text-cyan-300">{value}</p></div>)}</section>
+
+    <section className={panel}><h2 className="mb-4 text-xl font-bold text-yellow-300">Demandes en attente</h2>{!pending.length && <p className="text-gray-400">Aucune demande.</p>}<div className="space-y-3">{pending.map((profile) => <div key={profile.id} className="flex flex-wrap items-center justify-between gap-3 rounded border border-gray-700 p-3"><div><p className="font-bold">{profile.display_name}</p><p className="text-xs text-gray-400">{emailById.get(profile.id)}</p></div><div className="flex gap-2"><form action={changeProfileStatus}><input type="hidden" name="userId" value={profile.id}/><input type="hidden" name="status" value="active"/><button className="rounded bg-green-700 px-3 py-1.5">Valider</button></form><form action={changeProfileStatus}><input type="hidden" name="userId" value={profile.id}/><input type="hidden" name="status" value="rejected"/><button className="rounded bg-red-700 px-3 py-1.5">Refuser</button></form></div></div>)}</div></section>
+
+    <section className={panel}><h2 className="mb-4 text-xl font-bold text-purple-300">Utilisateurs, profils et rôles</h2><div className="overflow-x-auto"><table className="w-full text-left text-sm"><thead><tr className="text-gray-400"><th>Profil</th><th>Email</th><th>Statut</th><th>Rôles</th><th>Actions</th></tr></thead><tbody>{profiles.map((profile) => { const userRoles = roles.filter((role) => role.user_id === profile.id).map((role) => role.role); return <tr key={profile.id} className="border-t border-gray-800"><td className="py-3">{profile.display_name}</td><td>{emailById.get(profile.id)}</td><td>{profile.status}</td><td>{userRoles.join(", ")}</td><td><div className="flex flex-wrap gap-1"><form action={changeProfileStatus}><input type="hidden" name="userId" value={profile.id}/><select name="status" defaultValue={profile.status} className={input}><option value="pending">pending</option><option value="active">active</option><option value="suspended">suspended</option><option value="rejected">rejected</option></select><button className="ml-1 rounded border border-cyan-600 px-2 py-1">Appliquer</button></form>{(["member","moderator","admin"] as const).map((role) => <form action={changeRole} key={role}><input type="hidden" name="userId" value={profile.id}/><input type="hidden" name="role" value={role}/><input type="hidden" name="operation" value={userRoles.includes(role) ? "revoke" : "grant"}/><button className="rounded border border-gray-600 px-2 py-1">{userRoles.includes(role) ? "−" : "+"} {role}</button></form>)}</div></td></tr>; })}</tbody></table></div></section>
+
+    <section className="grid gap-6 lg:grid-cols-2"><div className={panel}><h2 className="mb-3 text-xl font-bold text-green-300">Clubs</h2><form action={createClub} className="mb-4 flex flex-wrap gap-2"><input name="name" required placeholder="Nom" className={input}/><input name="slug" required pattern="[a-z0-9-]+" placeholder="slug" className={input}/><input name="city" placeholder="Ville" className={input}/><button className="rounded bg-green-700 px-3">Ajouter</button></form>{(clubsResult.data ?? []).map((club) => <div key={club.id} className="flex justify-between border-t border-gray-800 py-2"><span>{club.name} · {club.city ?? "—"}</span><form action={deleteClub}><input type="hidden" name="clubId" value={club.id}/><button className="text-red-300">Supprimer</button></form></div>)}</div>
+    <div className={panel}><h2 className="mb-3 text-xl font-bold text-yellow-300">Achievements</h2>{(achievementsResult.data ?? []).map((achievement) => <div key={achievement.id} className="flex justify-between border-t border-gray-800 py-2"><span>{achievement.name} {achievement.is_secret ? "🔒" : ""}</span><form action={toggleAchievement}><input type="hidden" name="id" value={achievement.id}/><input type="hidden" name="active" value={String(achievement.is_active)}/><button className={achievement.is_active ? "text-green-300" : "text-gray-500"}>{achievement.is_active ? "Actif" : "Inactif"}</button></form></div>)}</div></section>
+
+    <section className="grid gap-6 lg:grid-cols-2"><div className={panel}><h2 className="mb-3 text-xl font-bold text-orange-300">Badges</h2>{(badgesResult.data ?? []).map((badge) => <div key={badge.id} className="flex justify-between border-t border-gray-800 py-2"><span>{badge.name} · {badge.rarity}</span><form action={toggleBadge}><input type="hidden" name="id" value={badge.id}/><input type="hidden" name="active" value={String(badge.is_active)}/><button className={badge.is_active ? "text-green-300" : "text-gray-500"}>{badge.is_active ? "Actif" : "Inactif"}</button></form></div>)}</div><div className={panel}><h2 className="mb-3 text-xl font-bold text-blue-300">File email</h2>{(outboxResult.data ?? []).map((item) => <div key={item.id} className="border-t border-gray-800 py-2 text-sm"><p>{item.template} · {emailById.get(item.user_id)}</p><p className={item.sent_at ? "text-green-400" : item.last_error ? "text-red-400" : "text-yellow-400"}>{item.sent_at ? "Envoyé" : item.last_error ?? "En attente de transport"}</p></div>)}</div></section>
+
+    <section className={panel}><h2 className="mb-3 text-xl font-bold text-gray-200">Journal d’audit des rôles</h2><div className="max-h-72 overflow-auto">{(auditResult.data ?? []).map((entry) => <p key={entry.id} className="border-t border-gray-800 py-2 text-sm">{new Date(entry.occurred_at).toLocaleString("fr-FR")} · {entry.action} {entry.role} · cible {entry.target_user_id}</p>)}</div></section>
+  </main>;
 }

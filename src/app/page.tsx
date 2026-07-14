@@ -1,19 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import dynamic from "next/dynamic";
+import { useCallback, useState, type ComponentType } from "react";
 import { useUserMode } from "../components/context/UserModeContext";
 import ModeGate from "../components/auth/ModeGate";
 import ModeSelection from "../components/modes/ModeSelection";
+import type { SelectableMode } from "../components/modes/ModeSelection";
 
-import DuelMode from "../components/modes/DuelMode";
-import HandicapMode from "../components/modes/HandicapMode";
-import TournamentMode from "../components/modes/TournamentMode";
-import HighlanderMode from "../components/modes/HighlanderMode";
-import BattleRoyaleMode from "../components/modes/BattleRoyaleMode";
+interface CombatModeProps {
+  onBack?: () => void;
+}
+
+const MODE_COMPONENTS = {
+  duel: dynamic(() => import("../components/modes/DuelMode")),
+  officialDuel: dynamic(() => import("../components/modes/OfficialDuelMode")),
+  handicap: dynamic(() => import("../components/modes/HandicapMode")),
+  tournament: dynamic(() => import("../components/modes/TournamentMode")),
+  highlander: dynamic(() => import("../components/modes/HighlanderMode")),
+  battleRoyale: dynamic(() => import("../components/modes/BattleRoyaleMode")),
+} satisfies Record<SelectableMode, ComponentType<CombatModeProps>>;
 
 export default function HomePage() {
   const { mode } = useUserMode();
-  const [activeMode, setActiveMode] = useState<string | null>(null);
+  const [activeMode, setActiveMode] = useState<SelectableMode | null>(null);
+  const returnToMenu = useCallback(() => setActiveMode(null), []);
 
   // 1️⃣ Choix invité / connecté
   if (!mode) return <ModeGate />;
@@ -24,23 +34,6 @@ export default function HomePage() {
   }
 
   // 3️⃣ Modes internes
-  switch (activeMode) {
-    case "duel":
-      return <DuelMode onBack={() => setActiveMode(null)} />;
-
-    case "handicap":
-      return <HandicapMode onBack={() => setActiveMode(null)} />;
-
-    case "tournament":
-      return <TournamentMode onBack={() => setActiveMode(null)} />;
-
-    case "highlander":
-      return <HighlanderMode onBack={() => setActiveMode(null)} />;
-
-    case "battleRoyale":
-      return <BattleRoyaleMode onBack={() => setActiveMode(null)} />;
-
-    default:
-      return <ModeSelection onSelect={setActiveMode} />;
-  }
+  const ActiveMode = MODE_COMPONENTS[activeMode];
+  return <ActiveMode onBack={returnToMenu} />;
 }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
+import { secureShuffle } from "@/lib/game/random";
 
 interface HighlanderData {
   championName: string;
@@ -49,7 +50,7 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
     return;
   }
 
-  const shuffled = [...data.opponents].sort(() => Math.random() - 0.5);
+  const shuffled = secureShuffle(data.opponents);
 
   setData(prev => ({
     ...prev,
@@ -268,6 +269,7 @@ const resetHighlander = () => {
             duration={data.timeLimit}
             onEnd={handleCombatEnd}
             mode="highlander"
+            persistenceMode="highlander"
           />
         </div>
       )}

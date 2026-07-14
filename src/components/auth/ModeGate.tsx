@@ -7,8 +7,16 @@ import { useRouter } from "next/navigation";
 
 
 export default function ModeGate() {
-  const { setMode } = useUserMode();
+  const { setMode, authLoading } = useUserMode();
   const router = useRouter();
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-cyan-300">
+        Vérification de la session...
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-8 bg-cyber-gradient text-white px-4">
@@ -51,6 +59,13 @@ export default function ModeGate() {
           "
         >
           🔐 Se connecter
+        </button>
+
+        <button
+          onClick={() => router.push("/register")}
+          className="p-4 rounded-xl bg-black/60 border border-purple-400/60 hover:border-purple-300 transition"
+        >
+          Créer un compte
         </button>
       </div>
 

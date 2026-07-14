@@ -14,7 +14,7 @@ export type Fault = {
 interface FaultSystemProps {
   player1: string;
   player2: string;
-  onFaultPenalty: (target: "left" | "right", penaltyType: "hp" | "disqualification", winner?: string) => void;
+  onFaultPenalty: (target: "left" | "right", penaltyType: "hp" | "disqualification", winner: string | undefined, fault: { type: FaultType; reason: string }) => void;
 }
 
 export default function FaultSystem({ player1, player2, onFaultPenalty }: FaultSystemProps) {
@@ -47,7 +47,7 @@ export default function FaultSystem({ player1, player2, onFaultPenalty }: FaultS
       faultCounts.current[target].jaune += 1;
       // 2 cartons jaunes = perte d'1 HP
       if (faultCounts.current[target].jaune >= 2) {
-        onFaultPenalty(target, "hp");
+        onFaultPenalty(target, "hp", undefined, { type, reason });
         faultCounts.current[target].jaune = 0; // Reset après pénalité
       }
     } 
@@ -55,12 +55,12 @@ export default function FaultSystem({ player1, player2, onFaultPenalty }: FaultS
       faultCounts.current[target].rouge += 1;
       // 1 carton rouge = disqualification immédiate
       const winner = target === "left" ? player2 : player1;
-      onFaultPenalty(target, "disqualification", winner);
+      onFaultPenalty(target, "disqualification", winner, { type, reason });
     }
     else if (type === "noir") {
       // Carton noir = disqualification immédiate
       const winner = target === "left" ? player2 : player1;
-      onFaultPenalty(target, "disqualification", winner + " (victoire par disqualification)");
+      onFaultPenalty(target, "disqualification", winner + " (victoire par disqualification)", { type, reason });
     }
 
     setShowAttribution(null);

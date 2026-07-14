@@ -1,21 +1,3 @@
-import connectToDatabase from "@/lib/mongodb";
-import Ranking from "@/models/Ranking";
-import { NextResponse } from "next/server";
-
-// POST /api/Rankings
-export async function POST(req: Request) {
-  await connectToDatabase(); // 👈 connexion ici
-
-  const body = await req.json();
-  const ranking = await Ranking.create(body);
-
-  return NextResponse.json(ranking, { status: 201 });
-}
-
-// GET /api/Rankings
-export async function GET() {
-  await connectToDatabase();
-
-  const rankings = await Ranking.find();
-  return NextResponse.json(rankings);
-}
+import { createClient } from "@/lib/supabase/server"; import { pagination } from "@/lib/api/pagination"; import { jsonData, withApiHandler } from "@/lib/api/responses"; import { RankingService } from "@/services";
+export async function GET(request: Request) { return withApiHandler(async () => { const p = pagination(request.url); const result = await new RankingService(await createClient()).list(p.from, p.to); return jsonData({ ...result, page: p.page, pageSize: p.pageSize }); }); }
+export async function POST(request: Request) { return withApiHandler(async () => jsonData(await new RankingService(await createClient()).createFrom(await request.json()), 201)); }

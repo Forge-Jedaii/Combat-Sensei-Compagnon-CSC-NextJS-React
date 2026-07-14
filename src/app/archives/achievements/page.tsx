@@ -3,24 +3,13 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUserMode } from "@/components/context/UserModeContext";
+import type { AchievementRow, RarityRow } from "@/types/database.types";
 
 /* ================= TYPES ================= */
 
-interface Rarity {
-  _id: string;
-  name: string;
-  category: string;
-}
-
-interface Achievement {
-  _id: string;
-  name: string;
-  description: string;
-  condition: string;
-  icon: string;
-  badge?: string;
-  rarities: Rarity[];
-}
+type Achievement = Pick<AchievementRow, "id" | "name" | "description" | "icon" | "is_secret"> & {
+  rarities: Pick<RarityRow, "id" | "name" | "category">[];
+};
 
 /* ================= PAGE ================= */
 
@@ -32,19 +21,22 @@ export default function AchievementsPage() {
     useState<Achievement | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchAchievements = async () => {
       try {
-        const res = await fetch("/api/achievements");
-        const data = await res.json();
-        setAchievements(data);
+        const res = await fetch("/api/achievements?pageSize=100", { cache: "no-store", signal: controller.signal });
+        const payload = await res.json();
+        if (!res.ok) throw new Error(payload.error?.message ?? "Erreur API");
+        setAchievements(payload.data.items);
       } catch (error) {
-        console.error("Failed to fetch achievements", error);
+        if (!controller.signal.aborted) console.error("Failed to fetch achievements", error);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     fetchAchievements();
+    return () => controller.abort();
   }, []);
 
   if (loading) {
@@ -58,7 +50,7 @@ export default function AchievementsPage() {
   // ✅ Calcul du nombre d’achievements débloqués
   const total = achievements.length;
   const unlocked = achievements.filter((ach) =>
-    user?.achievements.some((ua) => ua._id === ach._id)
+    user?.achievements.some((ua) => ua._id === ach.id && ua.unlocked)
   ).length;
 
   const progress = total ? Math.round((unlocked / total) * 100) : 0;
@@ -107,13 +99,12 @@ export default function AchievementsPage() {
       {/* ACHIEVEMENTS GRID */}
       <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {achievements.map((achievement) => {
-          const isUnlocked = user?.achievements.some(
-            (ua) => ua._id === achievement._id
-          );
+          const userAchievement = user?.achievements.find((item) => item._id === achievement.id);
+          const isUnlocked = userAchievement?.unlocked ?? false;
 
           return (
             <div
-              key={achievement._id}
+              key={achievement.id}
               onClick={() => setSelectedAchievement(achievement)}
               className={`
                 cursor-pointer rounded-xl p-4 border
@@ -130,13 +121,18 @@ export default function AchievementsPage() {
               </p>
 
               <p className="text-xs text-gray-400 text-center">
-                {achievement.description}
+                {achievement.is_secret && !isUnlocked ? "Achievement secret" : achievement.description}
               </p>
+
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-800" aria-label={`Progression ${userAchievement?.progress ?? 0}%`}>
+                <div className="h-full bg-green-400" style={{ width: `${userAchievement?.progress ?? 0}%` }} />
+              </div>
+              <p className="mt-1 text-center text-[10px] text-gray-400">{isUnlocked ? "Débloqué" : `Verrouillé · ${userAchievement?.progress ?? 0}%`}</p>
 
               <div className="mt-2 flex flex-wrap justify-center gap-1">
                 {achievement.rarities.map((rarity, index) => (
                   <span
-                    key={`${achievement._id}-${rarity._id}-${index}`}
+                    key={`${achievement.id}-${rarity.id}-${index}`}
                     className="text-[10px] px-2 py-0.5 rounded
                       bg-purple-600/20 text-purple-300 border border-purple-400/30"
                   >
@@ -161,7 +157,7 @@ export default function AchievementsPage() {
           </p>
 
           <p className="text-sm mt-2">
-            Statut : {user?.achievements.some((ua) => ua._id === selectedAchievement._id)
+            Statut : {user?.achievements.some((ua) => ua._id === selectedAchievement.id && ua.unlocked)
               ? "Débloqué ✅"
               : "Verrouillé 🔒"}
           </p>
@@ -169,7 +165,7 @@ export default function AchievementsPage() {
           <div className="flex gap-2 mt-2">
             {selectedAchievement.rarities.map((rarity) => (
               <span
-                key={rarity._id}
+                key={rarity.id}
                 className="text-xs px-2 py-1 rounded bg-purple-600/20 text-purple-300"
               >
                 {rarity.name}

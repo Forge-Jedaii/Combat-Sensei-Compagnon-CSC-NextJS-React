@@ -35,6 +35,7 @@ export default function DuelMode({ onBack }: { onBack?: () => void }) {
         player2={player2}
         duration={duration}
         onEnd={handleReset}
+        persistenceMode="duel"
       />
     );
   }

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
+import { secureShuffle } from "@/lib/game/random";
 
 // Tes handicaps prédéfinis dans le code
 const playerHandicapsPool = [
@@ -23,7 +24,7 @@ export default function HandicapMode({ onBack }: { onBack?: () => void }) {
   const [drawnHandicaps, setDrawnHandicaps] = useState<string[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [started, setStarted] = useState(false);
-  const [duration, setDuration] = useState(180); // durée combat par défaut
+  const [duration] = useState(180); // durée combat par défaut
 
   const drawHandicaps = () => {
     if (!player1 || !player2) {
@@ -32,7 +33,7 @@ export default function HandicapMode({ onBack }: { onBack?: () => void }) {
     }
 
     // Tirer 2 handicaps aléatoires depuis ton tableau prédéfini
-    const shuffled = [...playerHandicapsPool].sort(() => 0.5 - Math.random());
+    const shuffled = secureShuffle(playerHandicapsPool);
     setDrawnHandicaps(shuffled.slice(0, 2));
     setShowModal(true);
   };
@@ -58,6 +59,7 @@ export default function HandicapMode({ onBack }: { onBack?: () => void }) {
         player2={`${player2} (${drawnHandicaps[1]})`}
         duration={duration}
         onEnd={handleReset}
+        persistenceMode="handicap"
       />
     );
   }

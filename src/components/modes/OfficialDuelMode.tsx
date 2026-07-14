@@ -4,25 +4,11 @@ import React, { useState } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
 import OfficialSheet from "../combat/OfficialSheet";
+import type { PersistedCombat } from "@/repositories/combat-workflow.repository";
+import type { Json } from "@/types/database.types";
 
 interface OfficialDuelModeProps {
   onBack?: () => void;
-}
-
-// Typage pour un combattant
-interface FighterResult {
-  name: string;
-  finalHP: number;
-  damage: number;
-  faults: number;
-}
-
-// Typage pour les résultats du combat
-interface CombatResults {
-  fighter1: FighterResult;
-  fighter2: FighterResult;
-  winner: string;
-  result: string;
 }
 
 export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
@@ -34,7 +20,7 @@ export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
   const [duration, setDuration] = useState(180);
   const [started, setStarted] = useState(false);
   const [finished, setFinished] = useState(false);
-  const [combatResults, setCombatResults] = useState<CombatResults | null>(null);
+  const [persistedCombat, setPersistedCombat] = useState<PersistedCombat | null>(null);
 
   const handleStart = () => {
     setPlayer1(player1.trim() || "Je'daii 1");
@@ -43,70 +29,45 @@ export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
     setEvent(event.trim() || "Événement");
     setStarted(true);
     setFinished(false);
-    setCombatResults(null);
+    setPersistedCombat(null);
   };
 
-  const handleReset = () => {
+  const handlePersistedResult = (result: PersistedCombat) => {
+    setPersistedCombat(result);
     setStarted(false);
-    setFinished(false);
-    setCombatResults(null);
-    setPlayer1("Je'daii 1");
-    setPlayer2("Je'daii 2");
-    setReferee("Arbitre");
-    setEvent("Tournoi Forge Je'daii");
-    setRound("1");
-    setDuration(180);
+    setFinished(true);
   };
-
-  const handleEnd = (winner: string) => {
-  const results: CombatResults = {
-    fighter1: {
-      name: player1,
-      finalHP: Math.floor(Math.random() * 10) + 1,
-      damage: Math.floor(Math.random() * 9) + 1,
-      faults: Math.floor(Math.random() * 3),
-    },
-    fighter2: {
-      name: player2,
-      finalHP: Math.floor(Math.random() * 10) + 1,
-      damage: Math.floor(Math.random() * 9) + 1,
-      faults: Math.floor(Math.random() * 3),
-    },
-    winner: winner,
-    result: "Victoire par points",
-  };
-
-  setCombatResults(results);
-  setStarted(false);
-  setFinished(true);
-};
 
 
   const handleCloseOfficialSheet = () => {
     setFinished(false);
-    setCombatResults(null);
+    setPersistedCombat(null);
   };
 
   // Préparer les données pour OfficialSheet
-  const combatData = combatResults
+  const storedSettings = persistedCombat?.match.settings as Json;
+  const settings = storedSettings && typeof storedSettings === "object" && !Array.isArray(storedSettings) ? storedSettings : {};
+  const storedFighter1 = persistedCombat?.participants.find((participant) => participant.position === 1);
+  const storedFighter2 = persistedCombat?.participants.find((participant) => participant.position === 2);
+  const storedWinner = persistedCombat?.participants.find((participant) => participant.id === persistedCombat.match.winner_participant_id);
+  const combatData = persistedCombat && storedFighter1 && storedFighter2
     ? {
-        event: event,
-        duration: duration === 0 ? "Illimitée" : `${duration / 60} minutes`,
-        actualDuration: "À calculer",
-        arbitre: referee,
-        combatId: `JD-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
-          .toString()
-          .padStart(3, "0")}`,
-        fighter1: combatResults.fighter1,
-        fighter2: combatResults.fighter2,
-        winner: combatResults.winner,
-        result: combatResults.result,
+        event: persistedCombat.match.event_name ?? event,
+        duration: persistedCombat.match.max_duration_seconds ? `${persistedCombat.match.max_duration_seconds} secondes` : "Illimitée",
+        actualDuration: `${persistedCombat.match.duration_seconds ?? 0} secondes`,
+        arbitre: typeof settings.referee_name === "string" ? settings.referee_name : referee,
+        combatId: `CSC-${persistedCombat.match.public_id}`,
+        verificationHash: persistedCombat.match.verification_hash ?? "",
+        fighter1: { name: storedFighter1.display_name_snapshot, finalHP: storedFighter1.final_health ?? 0, damage: (storedFighter2.starting_health ?? 10) - (storedFighter2.final_health ?? 0), faults: persistedCombat.faults?.filter((fault) => fault.participant_id === storedFighter1.id).length ?? 0 },
+        fighter2: { name: storedFighter2.display_name_snapshot, finalHP: storedFighter2.final_health ?? 0, damage: (storedFighter1.starting_health ?? 10) - (storedFighter1.final_health ?? 0), faults: persistedCombat.faults?.filter((fault) => fault.participant_id === storedFighter2.id).length ?? 0 },
+        winner: storedWinner?.display_name_snapshot ?? "Égalité",
+        result: persistedCombat.match.result_type === "draw" ? "Match nul" : persistedCombat.match.result_type === "disqualification" ? "Victoire par disqualification" : "Victoire enregistrée",
       }
     : null;
 
   // Si duel en cours
   if (started) {
-    return <CombatArea player1={player1} player2={player2} duration={duration} onEnd={handleEnd} />;
+    return <CombatArea player1={player1} player2={player2} duration={duration} eventName={event} persistenceMode="official_duel" persistenceSettings={{ referee_name: referee, round }} onEnd={() => {}} onPersistedResult={handlePersistedResult} />;
   }
 
   // Sinon configuration

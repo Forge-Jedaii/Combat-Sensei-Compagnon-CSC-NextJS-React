@@ -1,34 +1,6 @@
-import { NextResponse } from "next/server";
-import connectToDatabase from "@/lib/mongodb";
-import User from "@/models/User";
-
-export async function GET(req: Request, { params }: { params: { id: string } }) {
-  await connectToDatabase();
-  const user = await User.findById(params.id).populate("achievements._id");
-  if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
-  return NextResponse.json(user);
-}
-
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  await connectToDatabase();
-  const body = await req.json();
-
-  const allowedUpdates = {
-    name: body.name,
-    club: body.club,
-    email: body.email,
-    photo: body.photo,
-    partage_donnees: body.partage_donnees,
-  };
-
-  const user = await User.findByIdAndUpdate(params.id, allowedUpdates, { new: true });
-  if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
-  return NextResponse.json(user);
-}
-
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  await connectToDatabase();
-  const user = await User.findByIdAndDelete(params.id);
-  if (!user) return NextResponse.json({ error: "Utilisateur introuvable" }, { status: 404 });
-  return NextResponse.json({ success: true, message: "Compte supprimé définitivement" });
-}
+import { createClient } from "@/lib/supabase/server"; import { createAdminClient } from "@/lib/supabase/admin"; import { jsonData, jsonDeleted, withApiHandler } from "@/lib/api/responses"; import { ApiError } from "@/lib/api/errors"; import { uuid } from "@/lib/api/validation"; import { ProfileService } from "@/services";
+type Context = { params: Promise<{ id: string }> };
+export async function GET(_: Request, { params }: Context) { return withApiHandler(async () => jsonData(await new ProfileService(await createClient()).get(uuid((await params).id)))); }
+export async function PUT(request: Request, { params }: Context) { return withApiHandler(async () => jsonData(await new ProfileService(await createClient()).updateFrom(uuid((await params).id), await request.json()))); }
+export const PATCH = PUT;
+export async function DELETE(_: Request, { params }: Context) { return withApiHandler(async () => { const id = uuid((await params).id); const client = await createClient(); const { data } = await client.auth.getUser(); if (!data.user) throw new ApiError("Authentification requise.", 401, "UNAUTHENTICATED"); if (data.user.id !== id) throw new ApiError("Action non autorisée.", 403, "FORBIDDEN"); const { error } = await createAdminClient().auth.admin.deleteUser(id); if (error) throw new ApiError("Suppression impossible.", 500, "AUTH_ADMIN_ERROR"); return jsonDeleted(); }); }

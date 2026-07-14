@@ -1,16 +1,75 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Button from "../ui/Button";
+import { secureShuffle } from "@/lib/game/random";
+import { TournamentWorkflowRepository } from "@/repositories/tournament-workflow.repository";
+import { useUserMode } from "@/components/context/UserModeContext";
+import type { Json, MatchMode } from "@/types/database.types";
 
 interface Match {
   id: number;
   player1: string;
   player2: string;
+  player1Key: string;
+  player2Key: string;
   winner?: string;
+  winnerKey?: string;
+  score1?: number;
+  score2?: number;
+}
+
+type Standing = { key: string; name: string; wins: number; losses: number; score: number };
+type Workflow = { status: "bracket" | "results"; activeTab: "bracket" | "results"; name: string; type: "elimination" | "roundrobin"; gameMode: "normal" | "handicap"; timeLimit: number; rounds: Match[][]; winner: string | null; winnerKey: string | null; standings: Standing[] };
+type Player = { key: string; name: string };
+
+function eliminationRounds(source: Player[]) {
+  const shuffled = secureShuffle(source);
+  while ((shuffled.length & (shuffled.length - 1)) !== 0) shuffled.push({ key: "BYE", name: "BYE" });
+  const first: Match[] = [];
+  for (let index = 0; index < shuffled.length; index += 2) {
+    const one = shuffled[index]; const two = shuffled[index + 1]; const byeWinner = one.key === "BYE" ? two : two.key === "BYE" ? one : null;
+    first.push({ id: index / 2, player1: one.name, player2: two.name, player1Key: one.key, player2Key: two.key, winner: byeWinner?.name, winnerKey: byeWinner?.key, score1: byeWinner?.key === one.key ? 1 : 0, score2: byeWinner?.key === two.key ? 1 : 0 });
+  }
+  return [first];
+}
+
+function roundRobinRounds(source: Player[]) {
+  const rotating = [...source];
+  if (rotating.length % 2) rotating.push({ key: "BYE", name: "BYE" });
+  const rounds: Match[][] = [];
+  for (let round = 0; round < rotating.length - 1; round += 1) {
+    const matches: Match[] = [];
+    for (let index = 0; index < rotating.length / 2; index += 1) {
+      const one = rotating[index]; const two = rotating[rotating.length - 1 - index]; const byeWinner = one.key === "BYE" ? two : two.key === "BYE" ? one : null;
+      matches.push({ id: index, player1: one.name, player2: two.name, player1Key: one.key, player2Key: two.key, winner: byeWinner?.name, winnerKey: byeWinner?.key, score1: byeWinner?.key === one.key ? 1 : 0, score2: byeWinner?.key === two.key ? 1 : 0 });
+    }
+    rounds.push(matches);
+    rotating.splice(1, 0, rotating.pop()!);
+  }
+  return rounds;
+}
+
+function tournamentStandings(rounds: Match[][]): Standing[] {
+  const standings = new Map<string, Standing>();
+  for (const match of rounds.flat()) {
+    for (const player of [{ key: match.player1Key, name: match.player1, score: match.score1 ?? 0 }, { key: match.player2Key, name: match.player2, score: match.score2 ?? 0 }]) {
+      if (player.key === "BYE") continue;
+      const standing = standings.get(player.key) ?? { key: player.key, name: player.name, wins: 0, losses: 0, score: 0 };
+      standing.score += player.score;
+      if (match.winnerKey) {
+        if (match.winnerKey === player.key) standing.wins += 1;
+        else standing.losses += 1;
+      }
+      standings.set(player.key, standing);
+    }
+  }
+  return [...standings.values()].sort((left, right) => right.wins - left.wins || right.score - left.score || left.losses - right.losses || left.name.localeCompare(right.name));
 }
 
 export default function TournamentMode({ onBack }: { onBack?: () => void }) {
+  const repository = React.useMemo(() => new TournamentWorkflowRepository(), []);
+  const { mode } = useUserMode();
   const [activeTab, setActiveTab] = useState<"setup" | "bracket" | "results">("setup");
   const [tournamentName, setTournamentName] = useState("Tournoi de la Forge");
   const [tournamentType, setTournamentType] = useState<"elimination" | "roundrobin">("elimination");
@@ -21,6 +80,20 @@ export default function TournamentMode({ onBack }: { onBack?: () => void }) {
   const [newParticipant, setNewParticipant] = useState("");
   const [rounds, setRounds] = useState<Match[][]>([]);
   const [winner, setWinner] = useState<string | null>(null);
+  const [tournamentId, setTournamentId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [standings, setStandings] = useState<Standing[]>([]);
+
+  useEffect(() => {
+    if (mode !== "authenticated") return;
+    void repository.latest().then((saved) => {
+      if (!saved) return;
+      const tournament = saved.tournament as { id: string; settings: { workflow?: Workflow } } | undefined;
+      const state = tournament?.settings?.workflow;
+      if (!tournament || !state) return;
+      setTournamentId(tournament.id); setTournamentName(state.name); setTournamentType(state.type); setGameMode(state.gameMode); setTimeLimit(state.timeLimit); setRounds(state.rounds); setWinner(state.winner); setStandings(state.standings ?? tournamentStandings(state.rounds)); setPlayers([...new Set(state.rounds.flatMap((round) => round.flatMap((match) => [match.player1, match.player2])).filter((name) => name !== "BYE"))]); setActiveTab(state.activeTab);
+    }).catch((error) => window.alert(error instanceof Error ? error.message : "Le tournoi n’a pas pu être repris."));
+  }, [mode, repository]);
 
   // Ajouter un participant
   const addParticipant = () => {
@@ -30,65 +103,79 @@ export default function TournamentMode({ onBack }: { onBack?: () => void }) {
   };
 
   // Mélanger les joueurs
-  const shuffleArray = (array: string[]) => {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  };
-
   // Générer le premier tour
-  const generateFirstRound = () => {
-    const shuffled = shuffleArray([...players]);
-    while ((shuffled.length & (shuffled.length - 1)) !== 0) shuffled.push("BYE"); // BYE pour puissance de 2
-    const firstRound: Match[] = [];
-    for (let i = 0; i < shuffled.length; i += 2) {
-      firstRound.push({ id: i / 2, player1: shuffled[i], player2: shuffled[i + 1] });
-    }
-    return firstRound;
-  };
-
   // Lancer le tournoi
-  const startTournament = () => {
+  const startTournament = async () => {
     if (players.length < 2) return alert("⚠️ Il faut au moins 2 participants !");
-    setRounds([generateFirstRound()]);
-    setActiveTab("bracket");
+    if (mode !== "authenticated") return alert("Connectez-vous pour créer un tournoi persistant.");
+    if (new Set(players.map((name) => name.toLocaleLowerCase())).size !== players.length) return alert("Chaque participant doit avoir un nom unique.");
+    const participantRecords = players.map((name) => ({ key: crypto.randomUUID(), name }));
+    const generated = tournamentType === "roundrobin" ? roundRobinRounds(participantRecords) : eliminationRounds(participantRecords);
+    const state: Workflow = { status: "bracket", activeTab: "bracket", name: tournamentName, type: tournamentType, gameMode, timeLimit, rounds: generated, winner: null, winnerKey: null, standings: tournamentStandings(generated) };
+    setSaving(true);
+    try {
+      const saved = await repository.create({ name: tournamentName, type: tournamentType === "roundrobin" ? "round_robin" : "single_elimination", gameMode: (gameMode === "handicap" ? "handicap" : "tournament") as MatchMode, durationSeconds: timeLimit, participants: participantRecords as unknown as Json, workflow: state as unknown as Json });
+      const tournament = saved.tournament as { id: string };
+      setTournamentId(tournament.id); setRounds(generated); setActiveTab("bracket");
+    } catch (error) { alert(error instanceof Error ? error.message : "Le tournoi n’a pas pu être créé."); }
+    finally { setSaving(false); }
   };
 
   // Définir le gagnant d'un match
-  const setMatchWinner = (roundIndex: number, matchId: number, win: string) => {
-    const updatedRounds = [...rounds];
+  const setMatchWinner = async (roundIndex: number, matchId: number, win: string) => {
+    if (!tournamentId || saving) return;
+    const updatedRounds = structuredClone(rounds);
     const match = updatedRounds[roundIndex][matchId];
-    match.winner = match.player1 === "BYE" ? match.player2 : match.player2 === "BYE" ? match.player1 : win;
+    match.winner = win;
+    match.winnerKey = win === match.player1 ? match.player1Key : match.player2Key;
+    match.score1 = win === match.player1 ? 1 : 0; match.score2 = win === match.player2 ? 1 : 0;
     updatedRounds[roundIndex] = updatedRounds[roundIndex].map((m, i) =>
       i === matchId ? match : m
     );
-    setRounds(updatedRounds);
-    advanceWinner(match.winner!, roundIndex);
+    const next = advanceWinner(roundIndex, updatedRounds);
+    const finalWinner = next.winner;
+    const nextStandings = tournamentStandings(next.rounds);
+    const state: Workflow = { status: finalWinner ? "results" : "bracket", activeTab: finalWinner ? "results" : "bracket", name: tournamentName, type: tournamentType, gameMode, timeLimit, rounds: next.rounds, winner: finalWinner?.name ?? null, winnerKey: finalWinner?.key ?? null, standings: nextStandings };
+    setSaving(true);
+    try { await repository.progress(tournamentId, { workflow: state, round: roundIndex + 1, position: matchId + 1, playerOneKey: match.player1Key, playerTwoKey: match.player2Key, winnerKey: match.winnerKey, scoreOne: match.score1, scoreTwo: match.score2 }); setRounds(next.rounds); setWinner(state.winner); setStandings(nextStandings); setActiveTab(state.activeTab); window.dispatchEvent(new Event("csc:data-refresh")); }
+    catch (error) { alert(error instanceof Error ? error.message : "Le résultat n’a pas pu être enregistré."); }
+    finally { setSaving(false); }
   };
 
-  const advanceWinner = (matchWinner: string, roundIndex: number) => {
-    const currentRound = rounds[roundIndex];
+  const advanceWinner = (roundIndex: number, sourceRounds: Match[][]): { rounds: Match[][]; winner: Player | null } => {
+    if (tournamentType === "roundrobin") {
+      if (!sourceRounds.flat().every((match) => match.winnerKey)) return { rounds: sourceRounds, winner: null };
+      const scores = new Map<string, { name: string; wins: number }>();
+      sourceRounds.flat().forEach((match) => { if (match.winnerKey && match.winnerKey !== "BYE") { const current = scores.get(match.winnerKey) ?? { name: match.winner!, wins: 0 }; current.wins += match.player1Key === "BYE" || match.player2Key === "BYE" ? 0 : 1; scores.set(match.winnerKey, current); } });
+      const champion = [...scores.entries()].sort((left, right) => right[1].wins - left[1].wins || left[1].name.localeCompare(right[1].name))[0];
+      return { rounds: sourceRounds, winner: champion ? { key: champion[0], name: champion[1].name } : null };
+    }
+    const currentRound = sourceRounds[roundIndex];
     if (currentRound.every((m) => m.winner)) {
       const winners = currentRound.map((m) => m.winner!);
       if (winners.length === 1) {
-        setWinner(winners[0]);
-        setActiveTab("results");
+        const finalMatch = currentRound[0];
+        return { rounds: sourceRounds, winner: { key: finalMatch.winnerKey!, name: finalMatch.winner! } };
       } else {
         const nextRound: Match[] = [];
         for (let i = 0; i < winners.length; i += 2) {
-          nextRound.push({ id: i / 2, player1: winners[i], player2: winners[i + 1] || "BYE" });
+          const first = currentRound[i]?.winnerKey ? { key: currentRound[i].winnerKey!, name: winners[i] } : { key: "BYE", name: "BYE" };
+          const secondMatch = currentRound[i + 1]; const second = secondMatch?.winnerKey ? { key: secondMatch.winnerKey, name: winners[i + 1] } : { key: "BYE", name: "BYE" };
+          const byeWinner = first.key === "BYE" ? second : second.key === "BYE" ? first : null;
+          nextRound.push({ id: i / 2, player1: first.name, player2: second.name, player1Key: first.key, player2Key: second.key, winner: byeWinner?.name, winnerKey: byeWinner?.key, score1: byeWinner?.key === first.key ? 1 : 0, score2: byeWinner?.key === second.key ? 1 : 0 });
         }
-        setRounds([...rounds, nextRound]);
+        return { rounds: [...sourceRounds, nextRound], winner: null };
       }
     }
+    return { rounds: sourceRounds, winner: null };
   };
 
   const backToModeSelection = () => {
     setActiveTab("setup");
     setRounds([]);
     setWinner(null);
+    setStandings([]);
+    setTournamentId(null);
   };
 
   const shareToWhatsApp = () => {
@@ -223,7 +310,7 @@ export default function TournamentMode({ onBack }: { onBack?: () => void }) {
                           <Button onClick={() => setMatchWinner(ri, mi, match.player2)}>✅ {match.player2}</Button>
                         </div>
                       ) : match.winner ? (
-                        <span className="text-cyber-blue font-bold">🏅 {match.winner}</span>
+                        <span className="text-cyber-blue font-bold">🏅 {match.winner} · {match.score1 ?? 0}-{match.score2 ?? 0}</span>
                       ) : null}
                     </div>
                   ))}
@@ -243,7 +330,7 @@ export default function TournamentMode({ onBack }: { onBack?: () => void }) {
         <div id="tournamentResults">
           <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold mb-4 text-cyber-blue text-glow text-center">🏆 Classement Final 🏆</div>
           <div className="space-y-3 max-h-96 overflow-y-auto mb-6 text-center">
-            <div className="text-white font-bold text-lg">🏅 {winner}</div>
+            {standings.map((standing, index) => <div key={standing.key} className="text-white font-bold text-lg">{index + 1}. {standing.name} · {standing.wins} V · {standing.losses} D · {standing.score} pts</div>)}
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={shareToWhatsApp}>📱 WhatsApp</Button>

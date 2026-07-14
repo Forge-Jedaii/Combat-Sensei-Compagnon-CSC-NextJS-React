@@ -1,248 +1,141 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useUserMode } from "@/components/context/UserModeContext";
-import { redirect } from "next/dist/server/api-utils";
-import { useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { deleteAccount, updateEmail, updateProfile, uploadAvatar } from "./actions";
+import { logout } from "@/app/auth/actions";
+import { ArchiveService, calculateFighterStatistics } from "@/services/archive.service";
 
-export default function ProfilsPage() {
-  const { user, setUser } = useUserMode();
-  const router = useRouter();
+const inputClass = "w-full rounded-lg border border-gray-600 bg-black px-3 py-2 text-white outline-none focus:border-cyan-400";
+const modeLabels: Record<string, string> = { duel: "Duel", official_duel: "Duel officiel", handicap: "Handicap", tournament: "Tournoi", highlander: "Highlander", battle_royale: "Battle Royale" };
 
-  useEffect(() => {
-    if (!user) return;
+function combatDuration(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours ? `${hours} h` : "", minutes ? `${minutes} min` : "", `${seconds} s`].filter(Boolean).join(" ");
+}
 
-    setPseudo(user.name || "");
-    setClub(user.club || "");
-    setPhoto(user.photo || "");
-    setShareData(user.partage_donnees === "true");
-    setEmail(user.email || "");
-  }, [user]);
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; message?: string }>;
+}) {
+  const params = await searchParams;
+  const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) redirect("/login?next=/archives/profils");
 
-  // ===== États Mon Profil =====
-  const [pseudo, setPseudo] = useState("");
-  const [club, setClub] = useState("");
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [shareData, setShareData] = useState(false);
-  const [email, setEmail] = useState(user?.email || "");
+  const [{ data: profile }, { data: clubs }, fighterData] = await Promise.all([
+    supabase.from("profiles").select("display_name, bio, avatar_path, share_data, club_id, created_at").eq("id", authData.user.id).single(),
+    supabase.from("clubs").select("id, name").order("name"),
+    new ArchiveService(supabase).fighterData(authData.user.id),
+  ]);
+  if (!profile) redirect("/login?error=Profil+introuvable.");
 
-  // ===== États Annuaire =====
-  // const [publicUsers, setPublicUsers] = useState<PublicUser[]>([]);
-  // const [search, setSearch] = useState("");
-  // const [currentPage, setCurrentPage] = useState(1);
-  // const usersPerPage = 6;
-
-  // ===== Récupération des utilisateurs publics =====
-  // useEffect(() => {
-  //   const fetchPublicUsers = async () => {
-  //     try {
-  //       const res = await fetch("/api/users/public");
-  //       const data = await res.json();
-  //       setPublicUsers(data);
-  //     } catch (error) {
-  //       console.error("Erreur récupération utilisateurs publics:", error);
-  //     }
-  //   };
-  //   fetchPublicUsers();
-  // }, []);
-
-  // ===== Upload photo =====
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => setPhoto(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  // ===== Filtrage et Pagination =====
-  // const filteredUsers = publicUsers
-  //   .filter((u) => u.name.toLowerCase().includes(search.toLowerCase()))
-  //   .sort((a, b) => a.name.localeCompare(b.name));
-
-  // const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-  // const startIndex = (currentPage - 1) * usersPerPage;
-  // const endIndex = startIndex + usersPerPage;
-  // const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
-
-  // const handlePrevPage = () => {
-  //   if (currentPage > 1) setCurrentPage(currentPage - 1);
-  // };
-  // const handleNextPage = () => {
-  //   if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  // };
-
-  // ===== Sauvegarde profil =====
-  const handleSaveProfile = async () => {
-  if (!user) return;
-
-  try {
-    const res = await fetch(`/api/users/${user._id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: pseudo,
-        email,
-        club,
-        partage_donnees: shareData ? "true" : "false",
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error("Erreur mise à jour profil");
-    }
-
-    const updatedUser = await res.json();
-
-    setUser(updatedUser);
-    alert("Profil mis à jour !");
-  } catch (error) {
-    console.error(error);
-    alert("Erreur lors de la mise à jour du profil");
-  }
-};
-
-const handleDeleteProfile = async () => {
-  if (!user) return;
-
-  const confirmed = confirm(
-    "Êtes-vous sûr de supprimer le profil ? Votre classement et l'ensemble de vos données seront supprimées."
-  );
-  if (!confirmed) return;
-
-  try {
-    const res = await fetch(`/api/users/${user._id}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error("Erreur lors de la suppression du profil");
-    }
-
-    // Nettoyage local
-    setUser(null);
-
-    alert("Profil supprimé !");
-    router.push("/login"); 
-  } catch (error) {
-    console.error(error);
-    alert("Erreur lors de la suppression du profil");
-  }
-};
+  const avatarUrl = profile.avatar_path
+    ? supabase.storage.from("avatars").getPublicUrl(profile.avatar_path).data.publicUrl
+    : null;
+  const statistics = calculateFighterStatistics(fighterData);
+  const statisticItems = [
+    ["Victoires", statistics.victories], ["Défaites", statistics.defeats], ["Égalités", statistics.draws],
+    ["Kills", statistics.kills], ["Deaths", statistics.deaths], ["Ratio K/D", statistics.killDeathRatio],
+    ["Win Rate", `${statistics.winRate}%`], ["Matchs joués", statistics.matchesPlayed],
+    ["Série actuelle", statistics.currentStreak], ["Meilleure série", statistics.longestStreak],
+    ["Nombre de touches", statistics.touches], ["Dégâts infligés", statistics.damageDealt],
+    ["Dégâts reçus", statistics.damageReceived], ["Cartons jaunes", statistics.yellowCards],
+    ["Cartons rouges", statistics.redCards], ["Cartons noirs", statistics.blackCards],
+    ["Temps de combat", combatDuration(statistics.combatTimeSeconds)],
+    ["Mode préféré", statistics.favoriteMode ? modeLabels[statistics.favoriteMode] : "—"],
+    ["Dernier combat", statistics.lastMatchAt ? new Date(statistics.lastMatchAt).toLocaleString("fr-FR") : "—"],
+  ] as const;
 
   return (
-    <main className="min-h-screen max-w-6xl mx-auto p-6 space-y-10 overflow-y-auto">
-      {/* ================= RETOUR ================= */}
-      <Link
-        href="/archives"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-gray-300
-        border border-gray-600/40 rounded-lg px-4 py-2 bg-black/40
-        hover:text-purple-400 hover:border-purple-400/50 transition-all"
-      >
-        ← Retour aux Archives
-      </Link>
+    <main className="mx-auto min-h-screen max-w-5xl space-y-7 p-6 text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/archives" className="text-sm text-cyan-300 hover:underline">← Retour aux Archives</Link>
+        <form action={logout}><button className="rounded-lg border border-gray-600 px-4 py-2 text-sm hover:border-red-400">Se déconnecter</button></form>
+      </div>
 
-      {/* ================= MON PROFIL ================= */}
-      <section className="bg-gradient-to-br from-[#173f3f] to-[#0f2b2b] border border-cyan-400/40 rounded-xl p-6">
-        <h1 className="text-cyan-400 text-2xl font-bold mb-6">👤 Mon Profil</h1>
+      <header>
+        <h1 className="text-3xl font-bold text-cyan-300">Mon profil</h1>
+        <p className="mt-1 text-sm text-gray-400">Compte vérifié : {authData.user.email_confirmed_at ? "oui" : "non"}</p>
+      </header>
 
-        <div className="grid md:grid-cols-3 gap-6 items-center">
-          {/* Photo */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-28 h-28 rounded-full border border-cyan-400/40 overflow-hidden bg-black/40 flex items-center justify-center">
-              {photo ? (
-                <img
-                  src={photo}
-                  alt="Profil"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-gray-400 text-sm">Photo</span>
-              )}
-            </div>
+      {(params.error || params.message) && (
+        <p className={`rounded-lg border p-3 text-sm ${params.error ? "border-red-500/40 text-red-300" : "border-green-500/40 text-green-300"}`}>
+          {params.error ?? params.message}
+        </p>
+      )}
 
-            <label
-              htmlFor="photoUpload"
-              className="cursor-pointer text-sm font-semibold
-              text-cyan-400 border border-cyan-400/40
-              px-4 py-1 rounded-md
-              hover:bg-cyan-400/10 transition"
-            >
-              📷 Choisir une photo
-            </label>
-            <input
-              id="photoUpload"
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
+      <section className="grid gap-6 rounded-2xl border border-cyan-400/30 bg-black/60 p-6 md:grid-cols-[180px_1fr]">
+        <div className="space-y-4 text-center">
+          <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border border-cyan-400/50 bg-black">
+            {avatarUrl ? (
+              <span
+                role="img"
+                aria-label="Avatar"
+                className="h-full w-full bg-cover bg-center"
+                style={{ backgroundImage: `url(${avatarUrl})` }}
+              />
+            ) : <span className="text-4xl">👤</span>}
           </div>
-
-          {/* Infos */}
-          <div className="md:col-span-2 grid sm:grid-cols-2 gap-4">
-            <div>
-              <label className="text-sm text-gray-400">Pseudo</label>
-              <input
-                value={pseudo}
-                onChange={(e) => setPseudo(e.target.value)}
-                className="w-full mt-1 bg-black border border-gray-600 rounded px-3 py-2 text-white"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-gray-400">Club</label>
-              <input
-                value={club}
-                onChange={(e) => setClub(e.target.value)}
-                className="w-full mt-1 bg-black border border-gray-600 rounded px-3 py-2 text-white"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-gray-400">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full mt-1 bg-black border border-gray-600 rounded px-3 py-2 text-white"
-              />
-            </div>
-          </div>
+          <form action={uploadAvatar} className="space-y-2" encType="multipart/form-data">
+            <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" required className="block w-full text-xs text-gray-400" />
+            <button className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-300">Changer l’avatar</button>
+          </form>
         </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <label className="flex items-center gap-4 text-gray-300">
-            <input
-              type="checkbox"
-              checked={shareData}
-              onChange={() => setShareData(!shareData)}
-              className="w-5 h-5 accent-purple-500"
-            />
-            Autoriser le partage de mes badges et expériences
+        <form action={updateProfile} className="space-y-4">
+          <label className="block space-y-1 text-sm text-gray-300">Pseudo
+            <input className={inputClass} name="displayName" defaultValue={profile.display_name} minLength={2} maxLength={40} required />
           </label>
+          <label className="block space-y-1 text-sm text-gray-300">Club
+            <select className={inputClass} name="clubId" defaultValue={profile.club_id ?? ""}>
+              <option value="">Aucun club</option>
+              {(clubs ?? []).map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}
+            </select>
+          </label>
+          <label className="block space-y-1 text-sm text-gray-300">Biographie
+            <textarea className={inputClass} name="bio" defaultValue={profile.bio ?? ""} maxLength={500} rows={4} />
+          </label>
+          <label className="flex items-center gap-3 text-sm text-gray-300">
+            <input type="checkbox" name="shareData" defaultChecked={profile.share_data} className="h-5 w-5 accent-purple-500" />
+            Afficher mon profil, mes badges et mon classement dans les espaces publics
+          </label>
+          <button className="rounded-lg bg-cyan-600 px-5 py-2.5 font-bold hover:bg-cyan-500">Enregistrer le profil</button>
+        </form>
+      </section>
 
-          <button
-            onClick={handleSaveProfile}
-            className="bg-cyan-600/80 hover:bg-cyan-500 transition
-            text-white font-semibold px-6 py-2 rounded-lg"
-          >
-            💾 Enregistrer les modifications
-          </button>
-          <button
-            onClick={handleDeleteProfile}
-            className="bg-cyan-600/80 hover:bg-cyan-500 transition
-            text-white font-semibold px-6 py-2 rounded-lg"
-          >
-            Supprimer le profil
-          </button>
+      <section className="rounded-2xl border border-cyan-400/30 bg-black/60 p-6">
+        <h2 className="mb-4 text-xl font-bold text-cyan-300">Profil combattant</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {statisticItems.map(([label, value]) => (
+            <div key={label} className="rounded-lg border border-gray-700 bg-black/40 p-3">
+              <p className="text-xs text-gray-400">{label}</p>
+              <p className="mt-1 font-bold text-white">{value}</p>
+            </div>
+          ))}
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-purple-400/30 bg-black/60 p-6">
+        <h2 className="mb-4 text-xl font-bold text-purple-300">Adresse email</h2>
+        <form action={updateEmail} className="flex flex-col gap-3 sm:flex-row">
+          <input className={inputClass} name="email" type="email" defaultValue={authData.user.email} required />
+          <button className="whitespace-nowrap rounded-lg bg-purple-600 px-5 py-2.5 font-bold hover:bg-purple-500">Modifier l’email</button>
+        </form>
+      </section>
+
+      <section className="rounded-2xl border border-red-500/30 bg-red-950/20 p-6">
+        <h2 className="text-xl font-bold text-red-300">Zone dangereuse</h2>
+        <p className="my-3 text-sm text-gray-400">La suppression retire définitivement le compte Auth et toutes les données liées par cascade.</p>
+        <form action={deleteAccount} className="space-y-3">
+          <label className="block max-w-md space-y-1 text-sm text-gray-300">
+            Mot de passe actuel
+            <input className={inputClass} name="currentPassword" type="password" autoComplete="current-password" required />
+          </label>
+          <button className="rounded-lg border border-red-500 bg-red-600/70 px-5 py-2.5 font-bold hover:bg-red-600">Supprimer définitivement mon compte</button>
+        </form>
       </section>
     </main>
   );

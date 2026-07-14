@@ -63,10 +63,11 @@ const sections = [
 export default function ArchivesPage() {
   const { mode, user } = useUserMode();
   const isGuest = mode === "guest";
+  const isAdmin = user?.roles.includes("admin") ?? false;
 
   // 🔒 Masquer Paramètres en mode invité
   const visibleSections = sections.filter(
-    (section) => !(isGuest && section.id === "parametres"),
+    (section) => section.id !== "parametres" || (!isGuest && isAdmin),
   );
 
   return (

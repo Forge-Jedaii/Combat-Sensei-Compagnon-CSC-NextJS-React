@@ -2,17 +2,31 @@
 
 import React, { useState } from "react";
 import Button from "../ui/Button";
+import { CombatWorkflowClient } from "@/services/combat-workflow.client";
+import { useUserMode } from "@/components/context/UserModeContext";
 
 export default function BattleRoyaleMode({ onBack }: { onBack?: () => void }) {
+  const workflow = React.useMemo(() => new CombatWorkflowClient(), []);
+  const { mode } = useUserMode();
   const [players, setPlayers] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (players.length < 3 || players.some((p) => !p.trim())) {
       alert("Veuillez entrer au moins 3 joueurs !");
       return;
     }
-    setStarted(true);
+    if (mode !== "authenticated") {
+      setStarted(true);
+      return;
+    }
+    try {
+      const saved = await workflow.start({ clientSessionId: crypto.randomUUID(), durationSeconds: 0, eventName: "Battle Royale", mode: "battle_royale", participants: players.map((name) => ({ name })) });
+      localStorage.setItem("csc:active-match:battle_royale", saved.match.id);
+      setStarted(true);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Le Battle Royale n’a pas pu être enregistré.");
+    }
   };
 
   const handleReset = () => {
