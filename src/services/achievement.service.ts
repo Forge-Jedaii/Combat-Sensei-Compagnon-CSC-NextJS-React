@@ -13,7 +13,7 @@ function payload(value: unknown, partial: boolean) {
     const parsed = partial ? optionalString(body, field, field === "description" ? 500 : 120) : requiredString(body, field, field === "description" ? 500 : 120);
     if (parsed !== undefined) result[field] = parsed;
   }
-  const condition = partial ? optionalString(body, "condition_type", 30) : requiredString(body, "condition_type", 30);
+  const condition = optionalString(body, "condition_type", 30);
   if (condition !== undefined && condition !== null) {
     if (!conditions.includes(condition as typeof conditions[number])) throw new ApiError("Condition invalide.", 400, "VALIDATION_ERROR");
     result.condition_type = condition;
@@ -21,7 +21,11 @@ function payload(value: unknown, partial: boolean) {
   for (const field of ["condition_value", "points_reward"] as const) { const parsed = optionalNumber(body, field, 0); if (parsed !== undefined) result[field] = parsed; }
   for (const field of ["is_active", "is_secret"] as const) { const parsed = optionalBoolean(body, field); if (parsed !== undefined) result[field] = parsed; }
   const badge = optionalString(body, "badge_label", 120); if (badge !== undefined) result.badge_label = badge;
-  if (!partial) { result.condition_value ??= null; result.condition_metadata = {}; result.badge_label ??= null; result.points_reward ??= 0; result.is_active ??= true; result.is_secret ??= false; }
+  if ("condition_metadata" in body) {
+    if (!body.condition_metadata || typeof body.condition_metadata !== "object" || Array.isArray(body.condition_metadata)) throw new ApiError("condition_metadata doit être un objet.", 400, "VALIDATION_ERROR");
+    result.condition_metadata = body.condition_metadata;
+  }
+  if (!partial) { result.condition_type ??= "custom"; result.condition_value ??= null; result.condition_metadata ??= {}; result.badge_label ??= null; result.points_reward ??= 0; result.is_active ??= true; result.is_secret ??= false; }
   return result;
 }
 

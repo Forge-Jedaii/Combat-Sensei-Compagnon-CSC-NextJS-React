@@ -38,6 +38,10 @@ export interface AchievementRow {
   condition_value: number | null; condition_metadata: Json; icon: string; badge_label: string | null;
   points_reward: number; is_active: boolean; is_secret: boolean; created_at: string; updated_at: string;
 }
+export type AchievementRule =
+  | { metric: string; operator?: "gte" | "gt" | "lte" | "lt" | "eq" | "neq"; value: number }
+  | { combinator?: "all" | "any"; rules: AchievementRule[] };
+export type AchievementMetricDefinitionRow = { metric_path: string; label: string; value_type: "number" | "text" | "boolean"; description: string | null; is_active: boolean; created_at: string };
 export type AchievementInsert = Omit<AchievementRow, "id" | "legacy_mongo_id" | "created_at" | "updated_at"> & { id?: string; legacy_mongo_id?: string | null; created_at?: string; updated_at?: string };
 
 export interface RankingRow {
@@ -70,6 +74,7 @@ export type UserRoleRow = { user_id: string; role: AppRole; granted_by: string |
 export type AchievementRarityRow = { achievement_id: string; rarity_id: string };
 export type UserSettingsRow = { user_id: string; sound_enabled: boolean; vibration_enabled: boolean; theme: "dark" | "light" | "cyber"; language: "fr" | "en"; auto_save: boolean; show_tutorial: boolean; created_at: string; updated_at: string };
 export type UserAchievementRow = { user_id: string; achievement_id: string; unlocked_at: string; source_match_id: string | null; progress_snapshot: Json };
+export type AchievementProgressRow = { achievement_id: string; current_value: number | null; target_value: number | null; progress: number; eligible: boolean };
 export type BadgeRow = { id: string; code: string; name: string; description: string; icon: string; rarity: "common" | "rare" | "epic" | "legendary"; category: string; is_active: boolean; created_at: string; updated_at: string };
 export type UserBadgeRow = { user_id: string; badge_id: string; unlocked_at: string; progress: number; metadata: Json };
 export type TournamentRow = { id: string; created_by: string; club_id: string | null; name: string; description: string | null; type: "single_elimination" | "round_robin"; status: "draft" | "registration" | "active" | "completed" | "cancelled"; game_mode: MatchMode; match_duration_seconds: number | null; max_participants: number; starts_at: string | null; ended_at: string | null; settings: Json; created_at: string; updated_at: string };
@@ -90,6 +95,7 @@ export type Database = {
       profiles: Table<ProfileRow, ProfileInsert>;
       rarities: Table<RarityRow, RarityInsert>;
       achievements: Table<AchievementRow, AchievementInsert>;
+      achievement_metric_definitions: Table<AchievementMetricDefinitionRow, Omit<AchievementMetricDefinitionRow, "created_at">>;
       achievement_rarities: Table<AchievementRarityRow, AchievementRarityRow>;
       rankings: Table<RankingRow, RankingInsert>;
       matches: Table<MatchRow, MatchInsert>;
@@ -123,6 +129,7 @@ export type Database = {
       record_match_fault: { Args: { target_match_id: string; target_participant_id: string; target_type: "yellow" | "red" | "black"; target_reason_code: string; target_reason_label: string; target_penalty: "warning" | "health" | "points" | "disqualification"; target_health_delta?: number; target_score_delta?: number }; Returns: MatchFaultRow };
       finish_match: { Args: { target_match_id: string; target_result_type: MatchResultType; target_winner_participant_id?: string | null }; Returns: Json };
       achievement_catalog: { Args: Record<string, never>; Returns: AchievementRow[] };
+      achievement_progress: { Args: { target_user_id: string }; Returns: AchievementProgressRow[] };
       create_tournament_workflow: { Args: { target_name: string; target_type: "single_elimination" | "round_robin"; target_game_mode: MatchMode; target_duration_seconds: number; target_participants: Json; target_workflow: Json }; Returns: Json };
       save_tournament_progress: { Args: { target_tournament_id: string; target_workflow: Json; target_round: number; target_position: number; target_player_one_key: string; target_player_two_key: string; target_winner_key: string; target_score_one?: number; target_score_two?: number }; Returns: Json };
       set_profile_status: { Args: { target_user_id: string; target_status: string }; Returns: ProfileRow };

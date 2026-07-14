@@ -74,6 +74,7 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
       supabase.from("user_settings").select("*").eq("user_id", authUser.id).maybeSingle(),
       supabase.from("user_achievements").select("achievement_id, progress_snapshot").eq("user_id", authUser.id),
       supabase.rpc("achievement_catalog"),
+      supabase.rpc("achievement_progress", { target_user_id: authUser.id }),
       supabase.from("user_badges").select("badge_id, progress").eq("user_id", authUser.id),
       supabase.from("badges").select("id, name, icon, rarity").eq("is_active", true),
       profile.club_id
@@ -95,12 +96,13 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
       { data: settings, error: settingsError },
       { data: unlockedAchievements, error: achievementsError },
       { data: achievementCatalog, error: catalogError },
+      { data: achievementProgressRows, error: progressError },
       { data: userBadges, error: badgesError },
       { data: badgeCatalog, error: badgeCatalogError },
       clubResult,
     ] = profileData;
 
-    if (rolesError || settingsError || achievementsError || catalogError || badgesError || badgeCatalogError) {
+    if (rolesError || settingsError || achievementsError || catalogError || progressError || badgesError || badgeCatalogError) {
       setAuthError("Certaines données de progression n’ont pas pu être chargées.");
     } else {
       setAuthError(null);
@@ -115,15 +117,10 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
     const rankings = fighterResult.rankings;
     const overall = rankings.find((ranking) => ranking.mode === null);
     const unlockedIds = new Set((unlockedAchievements ?? []).map((achievement) => achievement.achievement_id));
+    const progressById = new Map((achievementProgressRows ?? []).map((progress) => [progress.achievement_id, progress.progress]));
     const achievementProgress = (achievementCatalog ?? []).map((achievement) => {
       const unlocked = unlockedIds.has(achievement.id);
-      const target = achievement.condition_value ?? 1;
-      const current = achievement.condition_type === "victories" ? overall?.victories ?? 0
-        : achievement.condition_type === "matches" ? overall?.matches_played ?? 0
-        : achievement.condition_type === "win_streak" ? overall?.longest_win_streak ?? 0
-        : achievement.condition_type === "perfect_games" ? overall?.perfect_games ?? 0
-        : achievement.condition_type === "score" ? overall?.score ?? 0 : 0;
-      return { _id: achievement.id, progress: unlocked ? 100 : Math.min(99, Math.round((current / target) * 100)), unlocked };
+      return { _id: achievement.id, progress: unlocked ? 100 : progressById.get(achievement.id) ?? 0, unlocked };
     });
     const badgeById = new Map((badgeCatalog ?? []).map((badge) => [badge.id, badge]));
 
