@@ -47,9 +47,11 @@ export async function updateSession(request: NextRequest) {
     return redirectResponse;
   }
 
-  if (request.nextUrl.pathname.startsWith("/archives/parametres")) {
+  if (request.nextUrl.pathname.startsWith("/archives/parametres") || request.nextUrl.pathname.startsWith("/archives/competitions")) {
     if (!data?.claims) {
-      return NextResponse.redirect(new URL("/login?next=/archives/parametres", request.url));
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("next", request.nextUrl.pathname);
+      return NextResponse.redirect(loginUrl);
     }
     const { data: role } = await supabase
       .from("user_roles")

@@ -5,6 +5,7 @@ export type MatchMode = "duel" | "official_duel" | "handicap" | "tournament" | "
 export type MatchStatus = "draft" | "active" | "completed" | "cancelled";
 export type MatchResultType = "health" | "points" | "time" | "disqualification" | "draw" | "forfeit" | "other";
 export type EmailDeliveryStatus = "queued" | "processing" | "retry" | "sent" | "failed";
+export type CompetitionEventStatus = "draft" | "published" | "active" | "completed" | "cancelled";
 
 type Table<Row, Insert, Update = Partial<Insert>> = {
   Row: Row & Record<string, unknown>;
@@ -85,6 +86,11 @@ export type MatchEventRow = { id: number; match_id: string; actor_id: string | n
 export type RoleAuditRow = { id: number; target_user_id: string; role: AppRole; action: "grant" | "revoke"; actor_id: string | null; occurred_at: string };
 export type EmailOutboxRow = { id: number; user_id: string; template: "registration_pending" | "account_activated" | "account_rejected" | "account_suspended"; payload: Json; status: EmailDeliveryStatus; attempt_count: number; max_attempts: number; next_attempt_at: string; last_attempt_at: string | null; locked_at: string | null; locked_by: string | null; provider_message_id: string | null; created_at: string; updated_at: string; sent_at: string | null; last_error: string | null };
 export type EmailDeliveryAttemptRow = { id: number; outbox_id: number; attempt_number: number; worker_id: string; outcome: "sent" | "retry" | "failed"; provider: string; provider_message_id: string | null; http_status: number | null; error_code: string | null; error_message: string | null; occurred_at: string };
+export type CompetitionEventRow = { id: string; name: string; location: string; starts_at: string; organizer_id: string; description: string | null; status: CompetitionEventStatus; logo_path: string | null; image_path: string | null; disciplines: string[]; published_at: string | null; completed_at: string | null; created_at: string; updated_at: string };
+export type CompetitionActivityRow = { id: string; event_id: string; tournament_id: string | null; name: string; schedule_mode: "fixed" | "after_previous"; planned_start_at: string | null; previous_activity_id: string | null; estimated_start_at: string; duration_minutes: number; room: string | null; tatami: string | null; manager_id: string | null; manager_name: string | null; description: string | null; position: number; actual_started_at: string | null; actual_ended_at: string | null; created_at: string; updated_at: string };
+export type CompetitionEventClubRow = { event_id: string; club_id: string; invited_at: string };
+export type CompetitionEventTournamentRow = { event_id: string; tournament_id: string; sort_order: number; created_at: string };
+export type CompetitionParticipantAccessRow = { participant_id: string; public_token: string; created_at: string };
 export type PublicProfileRow = { id: string; display_name: string; club_id: string | null; club_name: string | null; bio: string | null; avatar_path: string | null; last_active_at: string | null; created_at: string };
 export type LeaderboardRow = { user_id: string; display_name: string; club_id: string | null; club_name: string | null; mode: MatchMode | null; score: number; victories: number; defeats: number; draws: number; matches_played: number; win_rate: number; longest_win_streak: number; perfect_games: number; last_match_at: string | null; rank_position: number };
 export type MatchSummaryRow = { id: string; public_id: number; mode: MatchMode; status: MatchStatus; result_type: MatchResultType | null; tournament_id: string | null; event_name: string | null; started_at: string | null; ended_at: string | null; duration_seconds: number | null; rules_version: string; participants: Json };
@@ -114,6 +120,11 @@ export type Database = {
       role_audit_log: Table<RoleAuditRow, Omit<RoleAuditRow, "id" | "occurred_at">>;
       email_outbox: Table<EmailOutboxRow, Omit<EmailOutboxRow, "id" | "created_at" | "updated_at">>;
       email_delivery_attempts: Table<EmailDeliveryAttemptRow, Omit<EmailDeliveryAttemptRow, "id" | "occurred_at">>;
+      competition_events: Table<CompetitionEventRow, Omit<CompetitionEventRow, "id" | "published_at" | "completed_at" | "created_at" | "updated_at">>;
+      competition_activities: Table<CompetitionActivityRow, Omit<CompetitionActivityRow, "id" | "estimated_start_at" | "created_at" | "updated_at">>;
+      competition_event_clubs: Table<CompetitionEventClubRow, Omit<CompetitionEventClubRow, "invited_at">>;
+      competition_event_tournaments: Table<CompetitionEventTournamentRow, Omit<CompetitionEventTournamentRow, "created_at">>;
+      competition_participant_access: Table<CompetitionParticipantAccessRow, Omit<CompetitionParticipantAccessRow, "public_token" | "created_at">>;
     };
     Views: {
       public_profiles: { Row: PublicProfileRow; Relationships: [] };
@@ -139,6 +150,11 @@ export type Database = {
       claim_email_outbox: { Args: { target_worker_id: string; target_batch_size?: number }; Returns: Pick<EmailOutboxRow, "id" | "user_id" | "template" | "payload" | "attempt_count" | "max_attempts">[] };
       complete_email_outbox: { Args: { target_outbox_id: number; target_worker_id: string; target_provider_message_id: string; target_http_status?: number }; Returns: undefined };
       fail_email_outbox: { Args: { target_outbox_id: number; target_worker_id: string; target_http_status: number | null; target_error_code: string; target_error_message: string; target_retry_after_seconds?: number | null }; Returns: undefined };
+      recalculate_competition_schedule: { Args: { target_event_id: string }; Returns: CompetitionActivityRow[] };
+      set_competition_event_status: { Args: { target_event_id: string; target_status: CompetitionEventStatus }; Returns: CompetitionEventRow };
+      move_competition_activity: { Args: { target_activity_id: string; target_position: number }; Returns: CompetitionActivityRow[] };
+      record_competition_activity_timing: { Args: { target_activity_id: string; target_started_at?: string | null; target_ended_at?: string | null }; Returns: CompetitionActivityRow[] };
+      competition_participant_public: { Args: { target_token: string }; Returns: Json };
       grant_app_role: { Args: { target_user_id: string; target_role: AppRole }; Returns: undefined };
       revoke_app_role: { Args: { target_user_id: string; target_role: AppRole }; Returns: undefined };
     };
@@ -148,6 +164,7 @@ export type Database = {
       match_status: MatchStatus;
       match_result_type: MatchResultType;
       email_delivery_status: EmailDeliveryStatus;
+      competition_event_status: CompetitionEventStatus;
     };
     CompositeTypes: Record<string, never>;
   };

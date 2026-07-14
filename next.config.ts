@@ -10,6 +10,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "api.qrserver.com", pathname: "/v1/create-qr-code/**" }],
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },

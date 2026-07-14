@@ -50,6 +50,15 @@ const sections = [
     glow: "hover:shadow-[0_0_24px_rgba(255,171,145,0.25)]",
   },
   {
+    id: "competitions",
+    title: "Compétitions",
+    subtitle: "Événements & planning",
+    icon: "🎟️",
+    color: "from-[#173b36] to-[#0d2522]",
+    borderColor: "border-[#34D399]/40",
+    glow: "hover:shadow-[0_0_24px_rgba(52,211,153,0.25)]",
+  },
+  {
     id: "parametres",
     title: "Paramètres",
     subtitle: "Gestion DB",
@@ -66,8 +75,8 @@ export default function ArchivesPage() {
   const isAdmin = user?.roles.includes("admin") ?? false;
 
   // 🔒 Masquer Paramètres en mode invité
-  const visibleSections = sections.filter(
-    (section) => section.id !== "parametres" || (!isGuest && isAdmin),
+  const visibleSections = sections.filter((section) =>
+    !["parametres", "competitions"].includes(section.id) || (!isGuest && isAdmin),
   );
 
   return (

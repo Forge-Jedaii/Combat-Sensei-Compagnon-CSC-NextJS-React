@@ -7,3 +7,4 @@ export { ProfileService } from "./profile.service";
 export { RankingService } from "./ranking.service";
 export { RarityService } from "./rarity.service";
 export { TournamentWorkflowService } from "./tournament-workflow.service";
+export { CompetitionService } from "./competition.service";
