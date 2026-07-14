@@ -53,14 +53,23 @@ export default function AchievementsPage() {
     const controller = new AbortController();
     const fetchAchievements = async () => {
       try {
-        const [res, badgeResult] = await Promise.all([
-          fetch("/api/achievements?pageSize=100", { cache: "no-store", signal: controller.signal }),
+        const supabase = createClient();
+        const [catalogResult, badgeResult, rarityLinkResult, rarityResult] = await Promise.all([
+          supabase.rpc("achievement_catalog"),
           createClient().from("badges").select("*").eq("is_active", true).order("category").order("name"),
+          supabase.from("achievement_rarities").select("achievement_id,rarity_id"),
+          supabase.from("rarities").select("id,name,category"),
         ]);
-        const payload = await res.json();
-        if (!res.ok) throw new Error(payload.error?.message ?? "Erreur API");
+        if (catalogResult.error) throw new Error(catalogResult.error.message);
         if (badgeResult.error) throw new Error(badgeResult.error.message);
-        setAchievements(payload.data.items);
+        if (rarityLinkResult.error) throw new Error(rarityLinkResult.error.message);
+        if (rarityResult.error) throw new Error(rarityResult.error.message);
+        const links = rarityLinkResult.data ?? [];
+        const rarities = rarityResult.data ?? [];
+        setAchievements((catalogResult.data ?? []).map((achievement) => ({
+          ...achievement,
+          rarities: rarities.filter((rarity) => links.some((link) => link.achievement_id === achievement.id && link.rarity_id === rarity.id)),
+        })));
         setBadges(badgeResult.data ?? []);
         setErrorMessage(null);
       } catch (error) {

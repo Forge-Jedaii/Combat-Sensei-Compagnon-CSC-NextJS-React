@@ -5,7 +5,7 @@ import { CombatWorkflowClient } from "@/services/combat-workflow.client";
 import type { PersistedCombat } from "@/repositories/combat-workflow.repository";
 import type { Json, MatchMode, MatchResultType } from "@/types/database.types";
 
-type Options = { mode?: MatchMode; player1: string; player2: string; player1StartingHealth?: number; player2StartingHealth?: number; duration: number; eventName?: string; tournamentId?: string; settings?: Json };
+type Options = { mode?: MatchMode; player1: string; player2: string; player1UserId?: string; player2UserId?: string; player1StartingHealth?: number; player2StartingHealth?: number; duration: number; eventName?: string; tournamentId?: string; settings?: Json };
 
 export function usePersistentCombat(options: Options) {
   const client = useMemo(() => new CombatWorkflowClient(), []);
@@ -37,8 +37,8 @@ export function usePersistentCombat(options: Options) {
           eventName: options.eventName,
           mode: matchMode,
           participants: [
-            { name: options.player1, startingHealth: options.player1StartingHealth ?? 10 },
-            { name: options.player2, startingHealth: options.player2StartingHealth ?? 10 },
+            { name: options.player1, userId: options.player1UserId, startingHealth: options.player1StartingHealth ?? 10 },
+            { name: options.player2, userId: options.player2UserId, startingHealth: options.player2StartingHealth ?? 10 },
           ],
           settings: options.settings,
           tournamentId: options.tournamentId,
@@ -49,7 +49,7 @@ export function usePersistentCombat(options: Options) {
         setError(reason instanceof Error ? reason.message : "Le combat n’a pas pu être enregistré.");
       }
     })();
-  }, [client, options.duration, options.eventName, options.mode, options.player1, options.player1StartingHealth, options.player2, options.player2StartingHealth, options.settings, options.tournamentId, storageKey]);
+  }, [client, options.duration, options.eventName, options.mode, options.player1, options.player1StartingHealth, options.player1UserId, options.player2, options.player2StartingHealth, options.player2UserId, options.settings, options.tournamentId, storageKey]);
 
   const participant = useCallback((position: number) => combat?.participants.find((item) => item.position === position), [combat]);
   const recordHealth = useCallback(async (position: number, health: number, eventType: string, payload?: Json) => {

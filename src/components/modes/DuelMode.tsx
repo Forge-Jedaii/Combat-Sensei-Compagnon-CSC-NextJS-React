@@ -3,14 +3,21 @@
 import React, { useState } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
+import FighterField from "../combat/FighterField";
+import { useUserMode } from "@/components/context/UserModeContext";
 
 export default function DuelMode({ onBack }: { onBack?: () => void }) {
+  const { mode, fighterId } = useUserMode();
   const [player1, setPlayer1] = useState("Je'daii 1");
   const [player2, setPlayer2] = useState("Je'daii 2");
   const [duration, setDuration] = useState(180); // 180s par défaut
   const [started, setStarted] = useState(false);
 
   const handleStart = () => {
+    if (mode === "authenticated" && (!fighterId(player1) || !fighterId(player2) || player1 === player2)) {
+      alert("Sélectionnez deux utilisateurs différents.");
+      return;
+    }
     // Utiliser des noms par défaut si les champs sont vides ou contiennent seulement des espaces
     const finalPlayer1 = player1.trim() || "Je'daii 1";
     const finalPlayer2 = player2.trim() || "Je'daii 2";
@@ -50,28 +57,22 @@ export default function DuelMode({ onBack }: { onBack?: () => void }) {
       {/* Inputs joueurs */}
       <div className="space-y-4 sm:space-y-6 mb-6">
         <div className="text-left">
-          <label className="block text-green-400 font-bold mb-2 text-sm sm:text-base text-glow-sm">
-            Nom du Je&apos;daii 1 (Zone Verte) :
-          </label>
-          <input
-            type="text"
+          <FighterField
+            label="Nom du Je'daii 1 (Zone Verte) :"
             value={player1}
-            maxLength={20}
-            onChange={(e) => setPlayer1(e.target.value)}
-            className="w-full p-2 sm:p-3 bg-black/70 border-2 border-green-400 rounded-lg text-white text-sm sm:text-base text-glow-sm focus:box-glow-strong focus:outline-none"
+            onChange={setPlayer1}
+            excludedNames={[player2]}
+            className="border-2 border-green-400"
           />
         </div>
 
         <div className="text-left">
-          <label className="block text-yellow-400 font-bold mb-2 text-sm sm:text-base text-glow-sm">
-            Nom du Je&apos;daii 2 (Zone Dorée) :
-          </label>
-          <input
-            type="text"
+          <FighterField
+            label="Nom du Je'daii 2 (Zone Dorée) :"
             value={player2}
-            maxLength={20}
-            onChange={(e) => setPlayer2(e.target.value)}
-            className="w-full p-2 sm:p-3 bg-black/70 border-2 border-yellow-400 rounded-lg text-white text-sm sm:text-base text-glow-sm focus:box-glow-strong focus:outline-none"
+            onChange={setPlayer2}
+            excludedNames={[player1]}
+            className="border-2 border-yellow-400"
           />
         </div>
 

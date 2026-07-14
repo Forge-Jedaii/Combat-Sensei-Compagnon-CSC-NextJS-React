@@ -6,6 +6,7 @@ import { secureShuffle } from "@/lib/game/random";
 import { TournamentWorkflowRepository } from "@/repositories/tournament-workflow.repository";
 import { useUserMode } from "@/components/context/UserModeContext";
 import type { Json, MatchMode } from "@/types/database.types";
+import FighterField from "../combat/FighterField";
 
 interface Match {
   id: number;
@@ -69,7 +70,7 @@ function tournamentStandings(rounds: Match[][]): Standing[] {
 
 export default function TournamentMode({ onBack }: { onBack?: () => void }) {
   const repository = React.useMemo(() => new TournamentWorkflowRepository(), []);
-  const { mode } = useUserMode();
+  const { mode, fighterId } = useUserMode();
   const [activeTab, setActiveTab] = useState<"setup" | "bracket" | "results">("setup");
   const [tournamentName, setTournamentName] = useState("Tournoi de la Forge");
   const [tournamentType, setTournamentType] = useState<"elimination" | "roundrobin">("elimination");
@@ -109,7 +110,7 @@ export default function TournamentMode({ onBack }: { onBack?: () => void }) {
     if (players.length < 2) return alert("⚠️ Il faut au moins 2 participants !");
     if (mode !== "authenticated") return alert("Connectez-vous pour créer un tournoi persistant.");
     if (new Set(players.map((name) => name.toLocaleLowerCase())).size !== players.length) return alert("Chaque participant doit avoir un nom unique.");
-    const participantRecords = players.map((name) => ({ key: crypto.randomUUID(), name }));
+    const participantRecords = players.map((name) => ({ key: fighterId(name) ?? crypto.randomUUID(), name, user_id: fighterId(name) ?? null }));
     const generated = tournamentType === "roundrobin" ? roundRobinRounds(participantRecords) : eliminationRounds(participantRecords);
     const state: Workflow = { status: "bracket", activeTab: "bracket", name: tournamentName, type: tournamentType, gameMode, timeLimit, rounds: generated, winner: null, winnerKey: null, standings: tournamentStandings(generated) };
     setSaving(true);
@@ -262,13 +263,13 @@ export default function TournamentMode({ onBack }: { onBack?: () => void }) {
                 ))}
               </div>
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <FighterField
+                  label="Ajouter un participant"
                   placeholder="Nom du Je'daii..."
-                  maxLength={20}
                   value={newParticipant}
-                  onChange={(e) => setNewParticipant(e.target.value)}
-                  className="flex-1 p-2 sm:p-3 bg-black/70 border-2 border-cyber-blue rounded-lg text-white"
+                  onChange={setNewParticipant}
+                  excludedNames={players}
+                  className="border-2 border-cyber-blue"
                 />
                 <Button onClick={addParticipant}>+ Ajouter</Button>
               </div>

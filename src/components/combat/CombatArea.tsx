@@ -13,6 +13,8 @@ import { useUserMode } from "@/components/context/UserModeContext";
 type CombatAreaProps = {
   player1: string;
   player2: string;
+  player1IdentityName?: string;
+  player2IdentityName?: string;
   duration: number;
   onEnd: (winner: string) => void
   mode?: "classic" | "highlander";
@@ -40,6 +42,8 @@ type LastHit = {
 export default function CombatArea({
   player1,
   player2,
+  player1IdentityName,
+  player2IdentityName,
   duration,
   onEnd,
   mode,
@@ -64,9 +68,9 @@ export default function CombatArea({
   // Timer
   const [paused, setPaused] = useState(true);
   const [resetKey, setResetKey] = useState(0);
-  const { mode: userMode } = useUserMode();
+  const { mode: userMode, fighterId } = useUserMode();
   const persistentMode = userMode === "authenticated" ? persistenceMode : undefined;
-  const persistence = usePersistentCombat({ duration, eventName, mode: persistentMode, player1, player1StartingHealth: player1HP, player2, player2StartingHealth: player2HP, settings: persistenceSettings, tournamentId });
+  const persistence = usePersistentCombat({ duration, eventName, mode: persistentMode, player1, player1UserId: fighterId(player1IdentityName ?? player1), player1StartingHealth: player1HP, player2, player2UserId: fighterId(player2IdentityName ?? player2), player2StartingHealth: player2HP, settings: persistenceSettings, tournamentId });
   const completionStarted = React.useRef(false);
 
   // Gestion des touches

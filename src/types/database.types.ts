@@ -74,6 +74,7 @@ export type MatchParticipantInsert = Omit<MatchParticipantRow, "id" | "created_a
 export type UserRoleRow = { user_id: string; role: AppRole; granted_by: string | null; granted_at: string };
 
 export type AchievementRarityRow = { achievement_id: string; rarity_id: string };
+export type AchievementBadgeRow = { achievement_id: string; badge_id: string };
 export type UserSettingsRow = { user_id: string; sound_enabled: boolean; vibration_enabled: boolean; theme: "dark" | "light" | "cyber"; language: "fr" | "en"; auto_save: boolean; show_tutorial: boolean; created_at: string; updated_at: string };
 export type UserAchievementRow = { user_id: string; achievement_id: string; unlocked_at: string; source_match_id: string | null; progress_snapshot: Json };
 export type AchievementProgressRow = { achievement_id: string; current_value: number | null; target_value: number | null; progress: number; eligible: boolean };
@@ -105,6 +106,7 @@ export type Database = {
       achievements: Table<AchievementRow, AchievementInsert>;
       achievement_metric_definitions: Table<AchievementMetricDefinitionRow, Omit<AchievementMetricDefinitionRow, "created_at">>;
       achievement_rarities: Table<AchievementRarityRow, AchievementRarityRow>;
+      achievement_badges: Table<AchievementBadgeRow, AchievementBadgeRow>;
       rankings: Table<RankingRow, RankingInsert>;
       matches: Table<MatchRow, MatchInsert>;
       match_participants: Table<MatchParticipantRow, MatchParticipantInsert>;
@@ -144,6 +146,7 @@ export type Database = {
       finish_match: { Args: { target_match_id: string; target_result_type: MatchResultType; target_winner_participant_id?: string | null }; Returns: Json };
       achievement_catalog: { Args: Record<string, never>; Returns: AchievementRow[] };
       achievement_progress: { Args: { target_user_id: string }; Returns: AchievementProgressRow[] };
+      active_fighter_directory: { Args: Record<string, never>; Returns: { id: string; display_name: string }[] };
       create_tournament_workflow: { Args: { target_name: string; target_type: "single_elimination" | "round_robin"; target_game_mode: MatchMode; target_duration_seconds: number; target_participants: Json; target_workflow: Json }; Returns: Json };
       save_tournament_progress: { Args: { target_tournament_id: string; target_workflow: Json; target_round: number; target_position: number; target_player_one_key: string; target_player_two_key: string; target_winner_key: string; target_score_one?: number; target_score_two?: number }; Returns: Json };
       set_profile_status: { Args: { target_user_id: string; target_status: string }; Returns: ProfileRow };

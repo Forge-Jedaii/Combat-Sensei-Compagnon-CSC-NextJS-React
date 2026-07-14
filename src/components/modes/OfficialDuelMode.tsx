@@ -6,12 +6,15 @@ import CombatArea from "../combat/CombatArea";
 import OfficialSheet from "../combat/OfficialSheet";
 import type { PersistedCombat } from "@/repositories/combat-workflow.repository";
 import type { Json } from "@/types/database.types";
+import FighterField from "../combat/FighterField";
+import { useUserMode } from "@/components/context/UserModeContext";
 
 interface OfficialDuelModeProps {
   onBack?: () => void;
 }
 
 export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
+  const { mode, fighterId } = useUserMode();
   const [player1, setPlayer1] = useState("Je'daii 1");
   const [player2, setPlayer2] = useState("Je'daii 2");
   const [referee, setReferee] = useState("Arbitre");
@@ -23,6 +26,10 @@ export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
   const [persistedCombat, setPersistedCombat] = useState<PersistedCombat | null>(null);
 
   const handleStart = () => {
+    if (mode === "authenticated" && (!fighterId(player1) || !fighterId(player2) || player1 === player2)) {
+      alert("Sélectionnez deux utilisateurs différents.");
+      return;
+    }
     setPlayer1(player1.trim() || "Je'daii 1");
     setPlayer2(player2.trim() || "Je'daii 2");
     setReferee(referee.trim() || "Arbitre");
@@ -81,27 +88,21 @@ export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
         {/* Joueurs */}
         <div className="space-y-4 sm:space-y-6 mb-6">
           <div>
-            <label className="block text-green-400 font-bold mb-2 text-sm sm:text-base">
-              Je&apos;daii 1 (Zone Verte) :
-            </label>
-            <input
-              type="text"
+            <FighterField
+              label="Je'daii 1 (Zone Verte) :"
               value={player1}
-              maxLength={20}
-              onChange={(e) => setPlayer1(e.target.value)}
-              className="w-full p-2 sm:p-3 bg-black/70 border-2 border-green-400 rounded-lg text-white"
+              onChange={setPlayer1}
+              excludedNames={[player2]}
+              className="border-2 border-green-400"
             />
           </div>
           <div>
-            <label className="block text-yellow-400 font-bold mb-2 text-sm sm:text-base">
-              Je&apos;daii 2 (Zone Dorée) :
-            </label>
-            <input
-              type="text"
+            <FighterField
+              label="Je'daii 2 (Zone Dorée) :"
               value={player2}
-              maxLength={20}
-              onChange={(e) => setPlayer2(e.target.value)}
-              className="w-full p-2 sm:p-3 bg-black/70 border-2 border-yellow-400 rounded-lg text-white"
+              onChange={setPlayer2}
+              excludedNames={[player1]}
+              className="border-2 border-yellow-400"
             />
           </div>
         </div>

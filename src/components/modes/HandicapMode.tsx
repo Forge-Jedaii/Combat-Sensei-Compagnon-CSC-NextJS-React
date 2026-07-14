@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
 import { secureShuffle } from "@/lib/game/random";
+import FighterField from "../combat/FighterField";
 
 // Tes handicaps prédéfinis dans le code
 const playerHandicapsPool = [
@@ -57,6 +58,8 @@ export default function HandicapMode({ onBack }: { onBack?: () => void }) {
       <CombatArea
         player1={`${player1} (${drawnHandicaps[0]})`}
         player2={`${player2} (${drawnHandicaps[1]})`}
+        player1IdentityName={player1}
+        player2IdentityName={player2}
         duration={duration}
         onEnd={handleReset}
         persistenceMode="handicap"
@@ -76,23 +79,23 @@ export default function HandicapMode({ onBack }: { onBack?: () => void }) {
         {/* Inputs joueurs */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div>
-            <label className="block text-cyan-400 font-bold mb-2">Nom du Premier Je&apos;daii :</label>
-            <input
-              type="text"
+            <FighterField
+              label="Nom du Premier Je'daii :"
               placeholder="Nom du Premier Je'daii"
               value={player1}
-              onChange={(e) => setPlayer1(e.target.value)}
-              className="w-full px-4 py-4 rounded-lg border border-cyan-400/40 bg-black/60 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:bg-black/80 font-orbitron"
+              onChange={setPlayer1}
+              excludedNames={[player2]}
+              className="border border-cyan-400/40"
             />
           </div>
           <div>
-            <label className="block text-cyan-400 font-bold mb-2">Nom du Second Je&apos;daii :</label>
-            <input
-              type="text"
+            <FighterField
+              label="Nom du Second Je'daii :"
               placeholder="Nom du Second Je'daii"
               value={player2}
-              onChange={(e) => setPlayer2(e.target.value)}
-              className="w-full px-4 py-4 rounded-lg border border-cyan-400/40 bg-black/60 text-white placeholder-gray-400 focus:outline-none focus:border-cyan-400 focus:bg-black/80 font-orbitron"
+              onChange={setPlayer2}
+              excludedNames={[player1]}
+              className="border border-cyan-400/40"
             />
           </div>
         </div>

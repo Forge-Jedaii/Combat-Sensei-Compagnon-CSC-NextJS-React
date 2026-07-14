@@ -4,10 +4,11 @@ import React, { useState } from "react";
 import Button from "../ui/Button";
 import { CombatWorkflowClient } from "@/services/combat-workflow.client";
 import { useUserMode } from "@/components/context/UserModeContext";
+import FighterField from "../combat/FighterField";
 
 export default function BattleRoyaleMode({ onBack }: { onBack?: () => void }) {
   const workflow = React.useMemo(() => new CombatWorkflowClient(), []);
-  const { mode } = useUserMode();
+  const { mode, fighterId } = useUserMode();
   const [players, setPlayers] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
 
@@ -21,7 +22,7 @@ export default function BattleRoyaleMode({ onBack }: { onBack?: () => void }) {
       return;
     }
     try {
-      const saved = await workflow.start({ clientSessionId: crypto.randomUUID(), durationSeconds: 0, eventName: "Battle Royale", mode: "battle_royale", participants: players.map((name) => ({ name })) });
+      const saved = await workflow.start({ clientSessionId: crypto.randomUUID(), durationSeconds: 0, eventName: "Battle Royale", mode: "battle_royale", participants: players.map((name) => ({ name, userId: fighterId(name) })) });
       localStorage.setItem("csc:active-match:battle_royale", saved.match.id);
       setStarted(true);
     } catch (error) {
@@ -59,17 +60,18 @@ export default function BattleRoyaleMode({ onBack }: { onBack?: () => void }) {
           {/* Ajout des joueurs */}
           <div className="mb-6">
             {players.map((p, i) => (
-              <input
+              <FighterField
                 key={i}
-                type="text"
-                placeholder={`Joueur ${i + 1}`}
+                label={`Joueur ${i + 1}`}
+                placeholder={`Choisir le joueur ${i + 1}`}
                 value={p}
-                onChange={(e) => {
+                excludedNames={players.filter((_, index) => index !== i)}
+                onChange={(name) => {
                   const newPlayers = [...players];
-                  newPlayers[i] = e.target.value;
+                  newPlayers[i] = name;
                   setPlayers(newPlayers);
                 }}
-                className="w-full mb-2 px-3 py-2 rounded-lg border border-red-500/40 bg-black/60 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+                className="mb-2 border border-red-500/40"
               />
             ))}
             <Button

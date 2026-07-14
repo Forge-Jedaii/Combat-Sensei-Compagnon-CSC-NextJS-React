@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Button from "../ui/Button";
 import CombatArea from "../combat/CombatArea";
 import { secureShuffle } from "@/lib/game/random";
+import FighterField from "../combat/FighterField";
 
 interface HighlanderData {
   championName: string;
@@ -32,6 +33,7 @@ export default function HighlanderMode({ onBack }: { onBack?: () => void }) {
   const [player1HP, setPlayer1HP] = useState(10);
   const [player2HP, setPlayer2HP] = useState(10);
   const [player2Name, setPlayer2Name] = useState("");
+  const [newOpponent, setNewOpponent] = useState("");
   const [nextChampionHP, setNextChampionHP] = useState<number | null>(null);
   const [isStartingHighlander, setIsStartingHighlander] = useState(false);
 
@@ -147,12 +149,12 @@ const resetHighlander = () => {
           <h2 className="text-red-400 text-2xl font-bold text-glow mb-6 text-center">🔥 Configuration Highlander 🔥</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-red-400 font-bold mb-2">👑 Nom du Champion :</label>
-              <input
-                type="text"
+              <FighterField
+                label="👑 Nom du Champion :"
                 value={data.championName}
-                onChange={e => setData(prev => ({ ...prev, championName: e.target.value }))}
-                className="w-full p-2 bg-black/70 border-2 border-red-400 rounded-lg text-white"
+                onChange={(name) => setData(prev => ({ ...prev, championName: name }))}
+                excludedNames={data.opponents}
+                className="border-2 border-red-400"
               />
             </div>
             <div>
@@ -194,16 +196,17 @@ const resetHighlander = () => {
                 ))}
               </div>
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <FighterField
+                  label="Nouvel adversaire"
                   placeholder="Nom de l'adversaire..."
-                  className="flex-1 p-2 bg-black/70 border-2 border-red-400 rounded-lg text-white"
-                  id="newOpponentInput"
+                  value={newOpponent}
+                  onChange={setNewOpponent}
+                  excludedNames={[data.championName, ...data.opponents]}
+                  className="border-2 border-red-400"
                 />
                 <Button onClick={() => {
-                  const input = document.getElementById("newOpponentInput") as HTMLInputElement;
-                  addOpponent(input.value);
-                  input.value = "";
+                  addOpponent(newOpponent);
+                  setNewOpponent("");
                 }}>+ Ajouter</Button>
               </div>
             </div>

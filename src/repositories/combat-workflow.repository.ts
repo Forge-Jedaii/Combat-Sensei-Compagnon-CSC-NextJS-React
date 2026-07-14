@@ -20,7 +20,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export class CombatWorkflowRepository {
-  start(input: { clientSessionId: string; mode: string; participants: Array<{ name: string; startingHealth?: number }>; durationSeconds: number; eventName?: string; tournamentId?: string; settings?: Json }) {
+  start(input: { clientSessionId: string; mode: string; participants: Array<{ name: string; userId?: string; startingHealth?: number }>; durationSeconds: number; eventName?: string; tournamentId?: string; settings?: Json }) {
     return request<PersistedCombat>("/api/combat-workflow", {
       method: "POST",
       body: JSON.stringify({

@@ -34,6 +34,9 @@ interface UserModeContextType {
   authLoading: boolean;
   authError: string | null;
   refreshUser: () => Promise<void>;
+  fighterDirectory: { id: string; display_name: string }[];
+  fighterDirectoryLoading: boolean;
+  fighterId: (displayName: string) => string | undefined;
 }
 
 const UserModeContext = createContext<UserModeContextType | null>(null);
@@ -43,9 +46,12 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [fighterDirectory, setFighterDirectory] = useState<{ id: string; display_name: string }[]>([]);
+  const [fighterDirectoryLoading, setFighterDirectoryLoading] = useState(false);
 
   const loadProfile = useCallback(async (authUser: SupabaseUser | null) => {
     if (!authUser) {
+      setFighterDirectory([]);
       setAuthError(null);
       setUser(null);
       setMode((current) => (current === "guest" ? "guest" : null));
@@ -54,6 +60,7 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
     }
 
     const supabase = createClient();
+    setFighterDirectoryLoading(true);
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("display_name, avatar_path, share_data, club_id")
@@ -80,6 +87,7 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
       profile.club_id
         ? supabase.from("clubs").select("name").eq("id", profile.club_id).maybeSingle()
         : Promise.resolve({ data: null, error: null }),
+      supabase.rpc("active_fighter_directory"),
     ]).catch(() => null);
 
     if (!profileData) {
@@ -100,9 +108,13 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
       { data: userBadges, error: badgesError },
       { data: badgeCatalog, error: badgeCatalogError },
       clubResult,
+      { data: directory, error: directoryError },
     ] = profileData;
 
-    if (rolesError || settingsError || achievementsError || catalogError || progressError || badgesError || badgeCatalogError) {
+    setFighterDirectoryLoading(false);
+    setFighterDirectory(directory ?? []);
+
+    if (rolesError || settingsError || achievementsError || catalogError || progressError || badgesError || badgeCatalogError || directoryError) {
       setAuthError("Certaines données de progression n’ont pas pu être chargées.");
     } else {
       setAuthError(null);
@@ -179,8 +191,8 @@ export function UserModeProvider({ children }: { children: React.ReactNode }) {
   }, [loadProfile, refreshUser]);
 
   const contextValue = useMemo(
-    () => ({ mode, setMode, user, setUser, authLoading, authError, refreshUser }),
-    [mode, user, authLoading, authError, refreshUser],
+    () => ({ mode, setMode, user, setUser, authLoading, authError, refreshUser, fighterDirectory, fighterDirectoryLoading, fighterId: (displayName: string) => fighterDirectory.find((fighter) => fighter.display_name === displayName)?.id }),
+    [mode, user, authLoading, authError, refreshUser, fighterDirectory, fighterDirectoryLoading],
   );
 
   return (
