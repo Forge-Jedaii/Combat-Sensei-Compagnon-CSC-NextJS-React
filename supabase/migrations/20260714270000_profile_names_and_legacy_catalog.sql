@@ -85,7 +85,7 @@ insert into public.rankings (
   user_id, mode, score, victories, defeats, draws, matches_played,
   current_win_streak, longest_win_streak, perfect_games
 )
-select profile.id, null, 1000, 0, 0, 0, 0, 0, 0, 0
+select profile.id, null, 0, 0, 0, 0, 0, 0, 0, 0
 from public.profiles profile
 where profile.status = 'active'
 on conflict (user_id, mode) do nothing;

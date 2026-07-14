@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUserMode } from "@/components/context/UserModeContext";
 import { createClient } from "@/lib/supabase/client";
@@ -8,7 +8,7 @@ import type { AchievementRow, BadgeRow, Json, RarityRow } from "@/types/database
 
 /* ================= TYPES ================= */
 
-type Achievement = Pick<AchievementRow, "id" | "name" | "description" | "icon" | "is_secret" | "condition_type" | "condition_value" | "condition_metadata" | "points_reward"> & {
+type Achievement = Pick<AchievementRow, "id" | "code" | "name" | "description" | "icon" | "is_secret" | "condition_type" | "condition_value" | "condition_metadata" | "points_reward"> & {
   rarities: Pick<RarityRow, "id" | "name" | "category">[];
 };
 
@@ -36,6 +36,15 @@ function ruleDescription(metadata: Json, fallbackType: string, fallbackValue: nu
   if (metric && value !== null) return `Atteindre ${value} ${metric}.`;
   if (Array.isArray(rule.rules)) return `Remplir ${rule.rules.length} conditions (${rule.combinator === "any" ? "au moins une" : "toutes"}).`;
   return "Condition définie par le règlement CSC.";
+}
+
+function questMetric(achievement: Achievement): string {
+  const metadata = achievement.condition_metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return achievement.code;
+  const rule = metadata.rule;
+  return rule && typeof rule === "object" && !Array.isArray(rule) && typeof rule.metric === "string"
+    ? rule.metric
+    : achievement.code;
 }
 
 /* ================= PAGE ================= */
@@ -86,6 +95,19 @@ export default function AchievementsPage() {
     return () => controller.abort();
   }, []);
 
+  const displayedAchievements = useMemo(() => {
+    const unlockedIds = new Set(user?.achievements.filter((item) => item.unlocked).map((item) => item._id) ?? []);
+    const chains = new Map<string, Achievement[]>();
+    for (const achievement of achievements) {
+      const metric = questMetric(achievement);
+      chains.set(metric, [...(chains.get(metric) ?? []), achievement]);
+    }
+    return [...chains.values()].map((chain) => {
+      const ordered = chain.sort((left, right) => (left.condition_value ?? 0) - (right.condition_value ?? 0));
+      return ordered.find((achievement) => !unlockedIds.has(achievement.id)) ?? ordered.at(-1)!;
+    });
+  }, [achievements, user?.achievements]);
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-gray-400">
@@ -94,13 +116,13 @@ export default function AchievementsPage() {
     );
   }
 
-  // ✅ Calcul du nombre d’achievements débloqués
-  const total = achievements.length;
+  // Une seule quête active est affichée par métrique ; les étapes restent en base.
+  const total = displayedAchievements.length;
   const unlocked = achievements.filter((ach) =>
     user?.achievements.some((ua) => ua._id === ach.id && ua.unlocked)
   ).length;
 
-  const progress = total ? Math.round((unlocked / total) * 100) : 0;
+  const progress = achievements.length ? Math.round((unlocked / achievements.length) * 100) : 0;
 
   return (
     <main className="min-h-screen max-w-7xl mx-auto p-6 space-y-10">
@@ -127,7 +149,7 @@ export default function AchievementsPage() {
           </div>
           <div>
             <p className="text-5xl font-bold text-white">{total}</p>
-            <p className="text-gray-300">Disponibles</p>
+            <p className="text-gray-300">Quêtes actives</p>
           </div>
           <div>
             <p className="text-5xl font-bold text-green-400">{progress}%</p>
@@ -147,7 +169,7 @@ export default function AchievementsPage() {
       {errorMessage && <p role="alert" className="rounded-xl border border-red-500/40 bg-red-950/30 p-4 text-red-300">{errorMessage}</p>}
       {!errorMessage && !achievements.length && <p className="text-center text-gray-400">Aucun achievement disponible.</p>}
       <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {achievements.map((achievement) => {
+        {displayedAchievements.map((achievement) => {
           const userAchievement = user?.achievements.find((item) => item._id === achievement.id);
           const isUnlocked = userAchievement?.unlocked ?? false;
 
@@ -198,6 +220,8 @@ export default function AchievementsPage() {
           );
         })}
       </section>
+
+      <p className="text-center text-sm text-gray-400">{achievements.length} étapes de progression réparties dans {displayedAchievements.length} chaînes de quêtes.</p>
 
       <section className="space-y-4">
         <div>
