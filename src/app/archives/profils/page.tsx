@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { deleteAccount, updateEmail, updatePassword, updateProfile, uploadAvatar } from "./actions";
+import { deleteAccount, updateEmail, updatePassword, updateProfile } from "./actions";
 import { logout } from "@/app/auth/actions";
 import SubmitButton from "@/components/ui/SubmitButton";
+import AvatarUploadForm from "@/components/profile/AvatarUploadForm";
 
 const inputClass = "w-full rounded-lg border border-gray-600 bg-black px-3 py-2 text-white outline-none focus:border-cyan-400";
 
@@ -70,22 +71,7 @@ export default async function ProfilePage({
       </section>
 
       <section className="grid gap-6 rounded-2xl border border-cyan-400/30 bg-black/60 p-6 md:grid-cols-[180px_1fr]">
-        <div className="space-y-4 text-center">
-          <div className="mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border border-cyan-400/50 bg-black">
-            {avatarUrl ? (
-              <span
-                role="img"
-                aria-label="Avatar"
-                className="h-full w-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${avatarUrl})` }}
-              />
-            ) : <span className="text-4xl">👤</span>}
-          </div>
-          <form action={uploadAvatar} className="space-y-2" encType="multipart/form-data">
-            <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" required className="block w-full text-xs text-gray-400" />
-            <SubmitButton pendingLabel="Envoi…" className="rounded-lg border border-cyan-400/40 px-3 py-2 text-xs text-cyan-300 disabled:opacity-50">Changer l’avatar</SubmitButton>
-          </form>
-        </div>
+        <AvatarUploadForm currentAvatarUrl={avatarUrl} />
 
         <form action={updateProfile} className="space-y-4">
           <label className="block space-y-1 text-sm text-gray-300">Pseudo

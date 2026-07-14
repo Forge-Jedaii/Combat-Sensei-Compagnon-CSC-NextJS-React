@@ -13,6 +13,23 @@ function profileRedirect(key: "error" | "message", message: string): never {
   redirect(`/archives/profils?${new URLSearchParams({ [key]: message })}`);
 }
 
+function avatarUploadMessage(message: string): string {
+  const normalized = message.toLowerCase();
+  if (normalized.includes("payload too large") || normalized.includes("maximum allowed size")) {
+    return "L’image dépasse la limite autorisée de 2 Mo.";
+  }
+  if (normalized.includes("mime") || normalized.includes("content type")) {
+    return "Le format de cette image n’est pas accepté. Utilisez JPG, PNG ou WebP.";
+  }
+  if (normalized.includes("row-level security") || normalized.includes("unauthorized")) {
+    return "Votre session n’autorise pas l’envoi de cet avatar. Reconnectez-vous puis réessayez.";
+  }
+  if (normalized.includes("bucket not found")) {
+    return "Le stockage des avatars n’est pas configuré sur cette instance Supabase.";
+  }
+  return `L’avatar n’a pas pu être envoyé : ${message}`;
+}
+
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
@@ -74,10 +91,20 @@ export async function uploadAvatar(formData: FormData) {
     upsert: true,
     contentType: file.type,
   });
-  if (uploadError) profileRedirect("error", "L’avatar n’a pas pu être envoyé.");
+  if (uploadError) {
+    console.error("[profile.avatar.upload]", {
+      userId: data.user.id,
+      path,
+      fileType: file.type,
+      fileSize: file.size,
+      error: uploadError,
+    });
+    profileRedirect("error", avatarUploadMessage(uploadError.message));
+  }
 
   const { error } = await supabase.from("profiles").update({ avatar_path: path }).eq("id", data.user.id);
   if (error) {
+    console.error("[profile.avatar.update]", { userId: data.user.id, path, error });
     if (path !== previousPath) await supabase.storage.from("avatars").remove([path]);
     profileRedirect("error", "L’avatar a été envoyé mais le profil n’a pas pu être mis à jour.");
   }

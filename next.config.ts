@@ -10,6 +10,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    // Multipart encoding adds overhead around the 2 MiB avatar itself.
+    // Validation below and Supabase Storage still enforce the strict limit.
+    serverActions: {
+      bodySizeLimit: "3mb",
+    },
+  },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "api.qrserver.com", pathname: "/v1/create-qr-code/**" }],
   },
