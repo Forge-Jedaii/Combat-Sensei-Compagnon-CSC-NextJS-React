@@ -115,6 +115,18 @@ export async function register(formData: FormData) {
     authRedirect("/register", "error", "Cette adresse email est déjà utilisée.");
   }
 
+  const { data: existingProfile, error: profileLookupError } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("normalized_display_name", displayName.toLocaleLowerCase())
+    .neq("status", "deleted")
+    .maybeSingle();
+  if (profileLookupError) {
+    console.error("[register]", { step: "display_name_preflight", displayName, error: profileLookupError });
+    authRedirect("/register", "error", "La disponibilité du pseudo n’a pas pu être vérifiée.");
+  }
+  if (existingProfile) authRedirect("/register", "error", "Ce pseudo est déjà utilisé.");
+
   const origin = getOrigin();
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({

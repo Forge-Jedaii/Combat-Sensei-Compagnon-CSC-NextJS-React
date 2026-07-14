@@ -9,6 +9,14 @@ function payload(value: unknown, partial: boolean) {
   for (const field of ["slug", "name"] as const) {
     const parsed = partial ? optionalString(body, field, 120) : requiredString(body, field, 120); if (parsed !== undefined) result[field] = parsed;
   }
+  if (typeof result.slug === "string") {
+    result.slug = result.slug
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
   for (const field of ["description", "city", "department_code", "region", "country_code", "website_url", "logo_path"] as const) {
     const parsed = optionalString(body, field, field === "description" ? 500 : 200); if (parsed !== undefined) result[field] = parsed;
   }
