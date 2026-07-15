@@ -48,6 +48,9 @@ export async function POST(request: Request, { params }: Context) {
       const winner = optionalString(body, "winnerParticipantId", 36);
       return jsonData(await service.finish(matchId, resultType, winner ? uuid(winner) : null));
     }
+    if (action === "cancel") {
+      return jsonData(await service.cancel(matchId));
+    }
     throw new ApiError("Action de combat inconnue.", 400, "VALIDATION_ERROR");
   });
 }

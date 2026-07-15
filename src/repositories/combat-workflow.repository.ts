@@ -59,4 +59,11 @@ export class CombatWorkflowRepository {
       body: JSON.stringify({ action: "finish", resultType, winnerParticipantId }),
     });
   }
+
+  cancel(matchId: string) {
+    return request<PersistedCombat>(`/api/combat-workflow/${matchId}`, {
+      method: "POST",
+      body: JSON.stringify({ action: "cancel" }),
+    });
+  }
 }

@@ -7,28 +7,69 @@ import type { Json, MatchMode, MatchResultType } from "@/types/database.types";
 
 type Options = { mode?: MatchMode; player1: string; player2: string; player1UserId?: string; player2UserId?: string; player1StartingHealth?: number; player2StartingHealth?: number; duration: number; eventName?: string; tournamentId?: string; settings?: Json };
 
+function participantIdentity(userId: string | undefined, name: string): string {
+  return userId ?? name.trim().toLocaleLowerCase("fr");
+}
+
+function isSameCombat(combat: PersistedCombat, options: Options): boolean {
+  if (!options.mode || combat.match.mode !== options.mode || combat.match.status !== "active") return false;
+  const participants = [...combat.participants].sort((left, right) => left.position - right.position);
+  if (participants.length !== 2) return false;
+  const expected = [
+    participantIdentity(options.player1UserId, options.player1),
+    participantIdentity(options.player2UserId, options.player2),
+  ];
+  return participants.every((item, index) => (
+    participantIdentity(item.user_id ?? undefined, item.display_name_snapshot) === expected[index]
+  ));
+}
+
 export function usePersistentCombat(options: Options) {
   const client = useMemo(() => new CombatWorkflowClient(), []);
   const [combat, setCombat] = useState<PersistedCombat | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const initialization = useRef<Promise<void> | null>(null);
+  const requestVersion = useRef(0);
+  const previousLifecycle = useRef<string | null>(null);
   const storageKey = options.mode ? `csc:active-match:${options.mode}` : null;
+  const lifecycleKey = [
+    options.mode ?? "guest",
+    participantIdentity(options.player1UserId, options.player1),
+    participantIdentity(options.player2UserId, options.player2),
+    options.duration,
+    options.eventName ?? "",
+    options.tournamentId ?? "",
+    JSON.stringify(options.settings ?? {}),
+  ].join("|");
 
   useEffect(() => {
-    if (!options.mode || !storageKey || initialization.current) return;
+    const version = ++requestVersion.current;
+    setCombat(null);
+    setError(null);
+    if (!options.mode || !storageKey) return;
+
     const matchMode = options.mode;
-    initialization.current = (async () => {
+    const sessionKey = `${storageKey}:session`;
+    if (previousLifecycle.current && previousLifecycle.current !== lifecycleKey) {
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(sessionKey);
+    }
+    previousLifecycle.current = lifecycleKey;
+    void (async () => {
       try {
         const storedMatchId = localStorage.getItem(storageKey);
         if (storedMatchId) {
           const resumed = await client.resume(storedMatchId);
-          if (resumed.match.status === "active") {
+          if (version !== requestVersion.current) return;
+          if (isSameCombat(resumed, options)) {
             setCombat(resumed);
             return;
           }
+          // A mode-level key must never attach newly selected fighters to an
+          // older active aggregate. Only identifiers are kept in the browser.
           localStorage.removeItem(storageKey);
+          localStorage.removeItem(sessionKey);
         }
-        const sessionKey = `${storageKey}:session`;
+
         const clientSessionId = localStorage.getItem(sessionKey) ?? crypto.randomUUID();
         localStorage.setItem(sessionKey, clientSessionId);
         const created = await client.start({
@@ -43,36 +84,64 @@ export function usePersistentCombat(options: Options) {
           settings: options.settings,
           tournamentId: options.tournamentId,
         });
+        if (version !== requestVersion.current) return;
         localStorage.setItem(storageKey, created.match.id);
         setCombat(created);
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : "Le combat n’a pas pu être enregistré.");
+        if (version === requestVersion.current) {
+          setError(reason instanceof Error ? reason.message : "Le combat n’a pas pu être enregistré.");
+        }
       }
     })();
-  }, [client, options.duration, options.eventName, options.mode, options.player1, options.player1StartingHealth, options.player1UserId, options.player2, options.player2StartingHealth, options.player2UserId, options.settings, options.tournamentId, storageKey]);
+
+    return () => {
+      if (requestVersion.current === version) requestVersion.current += 1;
+    };
+    // lifecycleKey deliberately represents every field defining a new match.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, lifecycleKey, storageKey]);
 
   const participant = useCallback((position: number) => combat?.participants.find((item) => item.position === position), [combat]);
   const recordHealth = useCallback(async (position: number, health: number, eventType: string, payload?: Json) => {
     const target = participant(position);
-    if (!combat || !target) return;
+    if (!combat || combat.match.status !== "active" || !target) return;
     try { await client.recordHealth(combat.match.id, target.id, health, eventType, payload); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Échec de sauvegarde."); }
   }, [client, combat, participant]);
   const recordFault = useCallback(async (position: number, input: Omit<Parameters<CombatWorkflowClient["recordFault"]>[1], "participantId">) => {
     const target = participant(position);
-    if (!combat || !target) return;
+    if (!combat || combat.match.status !== "active" || !target) return;
     try { await client.recordFault(combat.match.id, { ...input, participantId: target.id }); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Échec de sauvegarde de la faute."); }
   }, [client, combat, participant]);
   const finish = useCallback(async (winnerPosition: number | null, resultType: MatchResultType) => {
-    if (!combat || !storageKey) return null;
-    const result = await client.finish(combat.match.id, resultType, winnerPosition ? participant(winnerPosition)?.id ?? null : null);
-    localStorage.removeItem(storageKey);
-    localStorage.removeItem(`${storageKey}:session`);
-    setCombat(result);
-    window.dispatchEvent(new Event("csc:data-refresh"));
-    return result;
+    if (!combat || combat.match.status !== "active" || !storageKey) return null;
+    try {
+      const result = await client.finish(combat.match.id, resultType, winnerPosition ? participant(winnerPosition)?.id ?? null : null);
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(`${storageKey}:session`);
+      setCombat(result);
+      window.dispatchEvent(new Event("csc:data-refresh"));
+      return result;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Le combat n’a pas pu être finalisé.");
+      return null;
+    }
   }, [client, combat, participant, storageKey]);
 
-  return { combat, error, finish, recordFault, recordHealth };
+  const cancel = useCallback(async () => {
+    if (!combat || combat.match.status !== "active" || !storageKey) return null;
+    try {
+      const result = await client.cancel(combat.match.id);
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(`${storageKey}:session`);
+      setCombat(result);
+      return result;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Le combat n’a pas pu être annulé.");
+      return null;
+    }
+  }, [client, combat, storageKey]);
+
+  return { cancel, combat, error, finish, recordFault, recordHealth };
 }

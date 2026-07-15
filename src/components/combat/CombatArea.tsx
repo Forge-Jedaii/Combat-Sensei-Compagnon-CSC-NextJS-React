@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Timer from "../ui/Timer";
 import UndoHit from "../ui/UndoHit";
 import FaultSystem from "./FaultSystem";
@@ -70,8 +70,36 @@ export default function CombatArea({
   const [resetKey, setResetKey] = useState(0);
   const { mode: userMode, fighterId } = useUserMode();
   const persistentMode = userMode === "authenticated" ? persistenceMode : undefined;
-  const persistence = usePersistentCombat({ duration, eventName, mode: persistentMode, player1, player1UserId: fighterId(player1IdentityName ?? player1), player1StartingHealth: player1HP, player2, player2UserId: fighterId(player2IdentityName ?? player2), player2StartingHealth: player2HP, settings: persistenceSettings, tournamentId });
+  const player1UserId = fighterId(player1IdentityName ?? player1);
+  const player2UserId = fighterId(player2IdentityName ?? player2);
+  const persistence = usePersistentCombat({ duration, eventName, mode: persistentMode, player1, player1UserId, player1StartingHealth: player1HP, player2, player2UserId, player2StartingHealth: player2HP, settings: persistenceSettings, tournamentId });
   const completionStarted = React.useRef(false);
+  const combatIdentity = useMemo(() => [
+    persistentMode ?? "guest",
+    player1UserId ?? player1,
+    player2UserId ?? player2,
+    duration,
+    eventName ?? "",
+    tournamentId ?? "",
+  ].join("|"), [duration, eventName, persistentMode, player1, player1UserId, player2, player2UserId, tournamentId]);
+
+  // CombatArea can remain mounted while a mode selects another pairing. Every
+  // piece of transient UI state must then start from a clean slate.
+  useEffect(() => {
+    setHp1(player1HP ?? 10);
+    setHp2(player2HP ?? 10);
+    setWinner(null);
+    setWinnerPosition(null);
+    setCompletionType("health");
+    setHitHistory([]);
+    setPaused(true);
+    setResetKey((key) => key + 1);
+    completionStarted.current = false;
+    // Starting health is sampled when the combat identity changes. Highlander
+    // remounts CombatArea for every pairing, while live HP callbacks must not
+    // create a new match on every hit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combatIdentity]);
 
   // Gestion des touches
   const handleHit = (target: "left" | "right") => {
@@ -84,6 +112,14 @@ export default function CombatArea({
     else setHp2((prev) => { const next = Math.max(prev - 1, 0); void persistence.recordHealth(2, next, "hit", { damage: 1 }); return next; });
   };
 
+  const handleQuit = async () => {
+    if (persistentMode && persistence.combat?.match.status === "active") {
+      const cancelled = await persistence.cancel();
+      if (!cancelled) return;
+    }
+    onEnd("");
+  };
+
   // Sync highlander
   useEffect(() => {
     if (mode === "highlander" && onPlayer1HPChange) onPlayer1HPChange(hp1);
@@ -94,7 +130,6 @@ export default function CombatArea({
   }, [hp2, mode, onPlayer2HPChange]);
 
   const initialized = React.useRef(false);
-  const persistenceInitialized = React.useRef(false);
   useEffect(() => {
     if (!initialized.current && mode === "highlander") {
       if (typeof player1HP === "number") setHp1(player1HP);
@@ -104,11 +139,14 @@ export default function CombatArea({
   }, [mode, player1HP, player2HP]);
 
   useEffect(() => {
-    if (!persistence.combat || persistenceInitialized.current) return;
+    if (!persistence.combat || persistence.combat.match.status !== "active") return;
     const [first, second] = persistence.combat.participants;
     if (typeof first?.final_health === "number") setHp1(first.final_health);
     if (typeof second?.final_health === "number") setHp2(second.final_health);
-    persistenceInitialized.current = true;
+    setHitHistory([]);
+    setPaused(true);
+    setResetKey((key) => key + 1);
+    completionStarted.current = false;
   }, [persistence.combat]);
 
   useEffect(() => {
@@ -174,7 +212,7 @@ export default function CombatArea({
             {paused ? "▶️" : "⏸"}
           </button>
           <button type="button" aria-label="Réinitialiser le chronomètre" onClick={() => setResetKey((k) => k + 1)} className="w-10 h-10 flex justify-center items-center bg-cyber-purple/20 border border-cyber-purple text-cyber-purple rounded-full">🔄</button>
-          <button type="button" aria-label="Quitter le combat" onClick={() => onEnd("")} className="w-10 h-10 flex justify-center items-center bg-cyber-navy/20 border border-cyber-navy text-cyber-navy rounded-full">🏠</button>
+          <button type="button" aria-label="Quitter et annuler le combat" onClick={() => { void handleQuit(); }} className="w-10 h-10 flex justify-center items-center bg-cyber-navy/20 border border-cyber-navy text-cyber-navy rounded-full">🏠</button>
         </div>
       </div>
 
@@ -189,7 +227,8 @@ export default function CombatArea({
       </div>
 
       {/* Fault System */}
-      <FaultSystem 
+      <FaultSystem
+        key={`${combatIdentity}:${persistence.combat?.match.id ?? "loading"}`}
         player1={player1}
         player2={player2}
         onFaultPenalty={(target, penaltyType, winner, fault) => {

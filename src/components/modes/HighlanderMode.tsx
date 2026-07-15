@@ -95,6 +95,10 @@ useEffect(() => {
 }, [isNextFightRequested, step, data.opponents, data.currentOpponentIndex, data.championHP, nextChampionHP,]);
 
 const handleCombatEnd = (winner: string) => {
+  if (!winner) {
+    setStep("progress");
+    return;
+  }
   if (winner === data.championName) {
     const nextIndex = data.currentOpponentIndex + 1;
     const isLast = nextIndex >= data.opponents.length;

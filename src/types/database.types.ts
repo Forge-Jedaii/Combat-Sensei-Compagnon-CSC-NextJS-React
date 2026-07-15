@@ -144,6 +144,7 @@ export type Database = {
       record_match_event: { Args: { target_match_id: string; target_participant_id: string; target_event_type: string; target_payload?: Json; target_final_health?: number | null; target_score?: number | null }; Returns: MatchParticipantRow };
       record_match_fault: { Args: { target_match_id: string; target_participant_id: string; target_type: "yellow" | "red" | "black"; target_reason_code: string; target_reason_label: string; target_penalty: "warning" | "health" | "points" | "disqualification"; target_health_delta?: number; target_score_delta?: number }; Returns: MatchFaultRow };
       finish_match: { Args: { target_match_id: string; target_result_type: MatchResultType; target_winner_participant_id?: string | null }; Returns: Json };
+      cancel_match: { Args: { target_match_id: string }; Returns: Json };
       achievement_catalog: { Args: Record<string, never>; Returns: AchievementRow[] };
       achievement_progress: { Args: { target_user_id: string }; Returns: AchievementProgressRow[] };
       active_fighter_directory: { Args: Record<string, never>; Returns: { id: string; display_name: string }[] };

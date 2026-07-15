@@ -74,7 +74,7 @@ export default function OfficialDuelMode({ onBack }: OfficialDuelModeProps) {
 
   // Si duel en cours
   if (started) {
-    return <CombatArea player1={player1} player2={player2} duration={duration} eventName={event} persistenceMode="official_duel" persistenceSettings={{ referee_name: referee, round }} onEnd={() => {}} onPersistedResult={handlePersistedResult} />;
+    return <CombatArea player1={player1} player2={player2} duration={duration} eventName={event} persistenceMode="official_duel" persistenceSettings={{ referee_name: referee, round }} onEnd={() => { setStarted(false); setPersistedCombat(null); }} onPersistedResult={handlePersistedResult} />;
   }
 
   // Sinon configuration

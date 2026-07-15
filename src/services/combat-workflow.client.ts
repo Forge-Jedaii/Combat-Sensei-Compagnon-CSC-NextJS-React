@@ -14,4 +14,5 @@ export class CombatWorkflowClient {
   recordHealth(matchId: string, participantId: string, health: number, eventType: string, payload?: Json) { return this.enqueue(() => this.repository.event(matchId, participantId, eventType, health, payload)); }
   recordFault(matchId: string, input: Parameters<CombatWorkflowRepository["fault"]>[1]) { return this.enqueue(() => this.repository.fault(matchId, input)); }
   finish(matchId: string, resultType: MatchResultType, winnerParticipantId: string | null): Promise<PersistedCombat> { return this.enqueue(() => this.repository.finish(matchId, resultType, winnerParticipantId)); }
+  cancel(matchId: string): Promise<PersistedCombat> { return this.enqueue(() => this.repository.cancel(matchId)); }
 }

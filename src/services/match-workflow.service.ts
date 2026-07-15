@@ -84,4 +84,11 @@ export class MatchWorkflowService {
     if (!data) throw new ApiError("Le combat n’a pas pu être finalisé.", 500, "MATCH_FINALIZATION_ERROR");
     return data;
   }
+
+  async cancel(matchId: string) {
+    const { data, error } = await this.client.rpc("cancel_match", { target_match_id: matchId });
+    if (error) throw fromPostgrestError(error);
+    if (!data) throw new ApiError("Le combat n’a pas pu être annulé.", 500, "MATCH_CANCELLATION_ERROR");
+    return data;
+  }
 }
