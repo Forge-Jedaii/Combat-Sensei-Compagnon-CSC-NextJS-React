@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#080b16" />
+    <title>CSC — Hors connexion</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #080b16; color: #fff; }
+      body { min-height: 100vh; margin: 0; display: grid; place-items: center; padding: 24px; box-sizing: border-box; text-align: center; }
+      main { max-width: 420px; padding: 28px; border: 1px solid #22d3ee66; border-radius: 18px; background: #0009; }
+      img { width: 96px; height: 96px; border-radius: 20px; }
+      h1 { color: #67e8f9; }
+      p { color: #d1d5db; line-height: 1.5; }
+      button { margin-top: 12px; padding: 12px 18px; border: 0; border-radius: 10px; background: #0891b2; color: white; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="/icons/icon-192.png" alt="Logo CSC" />
+      <h1>Connexion indisponible</h1>
+      <p>CSC a besoin d’une connexion pour charger et enregistrer les combats Supabase. Vos données ne sont pas remplacées par une copie locale.</p>
+      <button type="button" onclick="location.reload()">Réessayer</button>
+    </main>
+  </body>
+</html>
