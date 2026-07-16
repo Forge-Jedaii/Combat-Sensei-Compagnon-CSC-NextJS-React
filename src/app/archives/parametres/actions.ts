@@ -59,3 +59,13 @@ export async function toggleBadge(formData: FormData) {
   if (error) throw new Error(error.message);
   refresh();
 }
+
+export async function deleteMatch(formData: FormData) {
+  const client = await adminClient();
+  const { error } = await client.rpc("admin_delete_match", { target_match_id: text(formData, "matchId") });
+  if (error) throw new Error(error.message);
+  revalidatePath("/archives/historiques");
+  revalidatePath("/archives/statistiques");
+  revalidatePath("/archives/classements");
+  refresh();
+}

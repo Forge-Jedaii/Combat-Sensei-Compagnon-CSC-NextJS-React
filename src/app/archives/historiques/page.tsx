@@ -13,13 +13,14 @@ export default async function HistoriquePage() {
 
   const fighterData = await new ArchiveService(client).fighterData(data.user.id);
   const { ownParticipants, summaries, faults } = fighterData;
+  const completedSummaries = summaries.filter((summary) => summary.status === "completed");
   const ownByMatch = new Map(ownParticipants.map((participant) => [participant.match_id, participant]));
   const participantsByMatch = new Map(summaries.map((summary) => [summary.id, fighterData.participants.filter((participant) => participant.match_id === summary.id)]));
-  const wins = ownParticipants.filter((participant) => participant.is_winner).length;
-  const draws = summaries.filter((summary) => summary.result_type === "draw").length;
-  const losses = summaries.length - wins - draws;
+  const wins = completedSummaries.filter((summary) => ownByMatch.get(summary.id)?.is_winner).length;
+  const draws = completedSummaries.filter((summary) => summary.result_type === "draw").length;
+  const losses = completedSummaries.length - wins - draws;
   let cumulativeWins = 0;
-  const evolution = [...summaries].reverse().map((summary) => {
+  const evolution = [...completedSummaries].reverse().map((summary) => {
     if (ownByMatch.get(summary.id)?.is_winner) cumulativeWins += 1;
     return { date: summary.ended_at ? new Date(summary.ended_at).toLocaleDateString("fr-FR") : "—", points: cumulativeWins };
   });
@@ -30,7 +31,7 @@ export default async function HistoriquePage() {
       <section className="bg-gradient-to-br from-[#182047] to-[#101535] border border-blue-400/40 rounded-xl p-6">
         <h1 className="text-blue-400 text-2xl font-bold mb-6">📊 Mon Historique de Combat</h1>
         <div className="grid sm:grid-cols-4 gap-6 text-center">
-          <div><p className="text-3xl font-bold text-white">{summaries.length}</p><p className="text-sm text-gray-400">Combats totaux</p></div>
+          <div><p className="text-3xl font-bold text-white">{completedSummaries.length}</p><p className="text-sm text-gray-400">Combats terminés</p></div>
           <div><p className="text-3xl font-bold text-green-400">{wins}</p><p className="text-sm text-gray-400">Victoires</p></div>
           <div><p className="text-3xl font-bold text-red-400">{losses}</p><p className="text-sm text-gray-400">Défaites</p></div>
           <div><p className="text-3xl font-bold text-yellow-400">{draws}</p><p className="text-sm text-gray-400">Égalités</p></div>
@@ -50,17 +51,21 @@ export default async function HistoriquePage() {
             const opponents = matchParticipants.filter((participant) => participant.id !== own?.id);
             const winner = matchParticipants.find((participant) => participant.is_winner);
             const matchFaults = faults.filter((fault) => fault.match_id === summary.id);
-            const result = summary.result_type === "draw" ? "Égalité" : own?.is_winner ? "Victoire" : "Défaite";
+            const result = summary.status === "active" ? "En cours"
+              : summary.status === "cancelled" ? "Annulé"
+              : summary.result_type === "draw" ? "Égalité"
+              : own?.is_winner ? "Victoire" : "Défaite";
+            const usesPoints = summary.result_type === "points";
             return (
               <div key={summary.id} className="border border-gray-700 rounded-lg p-4 bg-black/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
                   <p className="font-bold text-white">{summary.event_name ?? modeLabels[summary.mode]}</p>
                   <p className="text-sm text-gray-400">{summary.ended_at ? new Date(summary.ended_at).toLocaleString("fr-FR") : "En cours"} · CSC-{summary.public_id}</p>
                   <p className="text-sm text-gray-300">Adversaire{opponents.length > 1 ? "s" : ""} : {opponents.map((participant) => participant.display_name_snapshot).join(", ") || "—"}</p>
-                  <p className="text-xs text-gray-400">Score : {matchParticipants.map((participant) => `${participant.display_name_snapshot} ${participant.score}`).join(" · ")} · Vainqueur : {winner?.display_name_snapshot ?? "Égalité"}</p>
-                  <p className="text-xs text-gray-400">Durée : {summary.duration_seconds ?? 0} s · Fautes : {matchFaults.length}{matchFaults.length ? ` (${matchFaults.map((fault) => fault.type).join(", ")})` : ""}</p>
+                  <p className="text-xs text-gray-400">{usesPoints ? "Score" : "PV finaux"} : {matchParticipants.map((participant) => `${participant.display_name_snapshot} ${usesPoints ? participant.score : participant.final_health ?? "—"}`).join(" · ")} · Vainqueur : {summary.status === "completed" ? winner?.display_name_snapshot ?? "Égalité" : "—"}</p>
+                  <p className="text-xs text-gray-400">Durée : {summary.duration_seconds == null ? "—" : `${summary.duration_seconds} s`} · Fautes : {matchFaults.length}{matchFaults.length ? ` (${matchFaults.map((fault) => fault.type).join(", ")})` : ""}</p>
                 </div>
-                <span className={`font-bold ${result === "Victoire" ? "text-green-400" : result === "Défaite" ? "text-red-400" : "text-yellow-400"}`}>{result}</span>
+                <span className={`font-bold ${result === "Victoire" ? "text-green-400" : result === "Défaite" ? "text-red-400" : result === "En cours" ? "text-cyan-300" : "text-yellow-400"}`}>{result}</span>
               </div>
             );
           })}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { changeProfileStatus, changeRole, createClub, deleteClub, toggleAchievement, toggleBadge } from "./actions";
+import { changeProfileStatus, changeRole, createClub, deleteClub, deleteMatch, toggleAchievement, toggleBadge } from "./actions";
 import SubmitButton from "@/components/ui/SubmitButton";
 
 const panel = "rounded-xl border border-gray-700 bg-black/50 p-5";
@@ -15,7 +15,7 @@ export default async function DatabaseSettingsPage() {
   const { data: adminRole } = await client.from("user_roles").select("role").eq("user_id", auth.user.id).eq("role", "admin").maybeSingle();
   if (!adminRole) redirect("/archives");
 
-  const [profilesResult, rolesResult, clubsResult, achievementsResult, badgesResult, auditResult, outboxResult, matchesCount, tournamentsCount] = await Promise.all([
+  const [profilesResult, rolesResult, clubsResult, achievementsResult, badgesResult, auditResult, outboxResult, matchesCount, tournamentsCount, matchesResult] = await Promise.all([
     client.from("profiles").select("id,display_name,status,club_id,created_at").order("created_at", { ascending: false }),
     client.from("user_roles").select("user_id,role,granted_at"),
     client.from("clubs").select("id,name,slug,city,is_verified").order("name"),
@@ -25,9 +25,10 @@ export default async function DatabaseSettingsPage() {
     client.from("email_outbox").select("id,user_id,template,created_at,sent_at,last_error").order("created_at", { ascending: false }).limit(100),
     client.from("matches").select("id", { count: "exact", head: true }),
     client.from("tournaments").select("id", { count: "exact", head: true }),
+    client.from("matches").select("id,public_id,mode,status,result_type,winner_participant_id,started_at,ended_at,duration_seconds,created_at").order("created_at", { ascending: false }).limit(100),
   ]);
   const dashboardError = profilesResult.error ?? rolesResult.error ?? clubsResult.error ?? achievementsResult.error
-    ?? badgesResult.error ?? auditResult.error ?? outboxResult.error ?? matchesCount.error ?? tournamentsCount.error;
+    ?? badgesResult.error ?? auditResult.error ?? outboxResult.error ?? matchesCount.error ?? tournamentsCount.error ?? matchesResult.error;
   if (dashboardError) throw new Error(`Chargement de l’administration impossible : ${dashboardError.message}`);
   const profiles = profilesResult.data ?? [];
   const roles = rolesResult.data ?? [];
@@ -35,10 +36,47 @@ export default async function DatabaseSettingsPage() {
   if (authUsers.error) throw new Error(`Chargement des comptes Auth impossible : ${authUsers.error.message}`);
   const emailById = new Map((authUsers.data.users ?? []).map((user) => [user.id, user.email ?? "—"]));
   const pending = profiles.filter((profile) => profile.status === "pending");
+  const matches = matchesResult.data ?? [];
+  const matchIds = matches.map((match) => match.id);
+  const matchParticipantsResult = matchIds.length
+    ? await client.from("match_participants").select("id,match_id,display_name_snapshot,position,starting_health,final_health,score,is_winner,user_id").in("match_id", matchIds).order("position")
+    : { data: [], error: null };
+  if (matchParticipantsResult.error) throw new Error(`Chargement des participants impossible : ${matchParticipantsResult.error.message}`);
+  const matchParticipants = matchParticipantsResult.data ?? [];
 
   return <main className="mx-auto min-h-screen max-w-7xl space-y-7 p-6 text-white">
     <div className="flex items-center justify-between"><div><h1 className="text-3xl font-bold text-cyan-300">Paramètres DB</h1><p className="text-sm text-gray-400">Administration Supabase et PostgreSQL</p></div><Link href="/archives" className="text-cyan-300 hover:underline">← Archives</Link></div>
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{[["Utilisateurs", profiles.length], ["En attente", pending.length], ["Matchs", matchesCount.count ?? 0], ["Tournois", tournamentsCount.count ?? 0], ["Emails en attente", (outboxResult.data ?? []).filter((item) => !item.sent_at).length]].map(([label,value]) => <div className={panel} key={label}><p className="text-xs text-gray-400">{label}</p><p className="text-2xl font-bold text-cyan-300">{value}</p></div>)}</section>
+
+    <section className={panel}>
+      <div className="mb-4"><h2 className="text-xl font-bold text-red-300">Historique de tous les matchs</h2><p className="text-xs text-gray-400">La suppression reconstruit automatiquement points, statistiques, rankings, achievements et badges des participants.</p></div>
+      {!matches.length && <p className="text-gray-400">Aucun match enregistré.</p>}
+      <div className="max-h-[36rem] space-y-3 overflow-y-auto pr-1">
+        {matches.map((match) => {
+          const participants = matchParticipants.filter((participant) => participant.match_id === match.id);
+          const winner = participants.find((participant) => participant.id === match.winner_participant_id);
+          return <article key={match.id} className="rounded-lg border border-gray-700 bg-black/40 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-bold text-white">CSC-{match.public_id} · {match.mode.replaceAll("_", " ")}</p>
+                <p className="text-xs text-gray-400">{new Date(match.started_at ?? match.created_at).toLocaleString("fr-FR")} · {match.status} · {match.duration_seconds == null ? "durée —" : `${match.duration_seconds} s`}</p>
+                <p className="mt-1 text-sm text-yellow-200">Vainqueur : {winner?.display_name_snapshot ?? (match.result_type === "draw" ? "Égalité" : "—")}</p>
+              </div>
+              <form action={deleteMatch}>
+                <input type="hidden" name="matchId" value={match.id}/>
+                <SubmitButton pendingLabel="Suppression…" confirmation={`Supprimer définitivement le match CSC-${match.public_id} et recalculer toute la progression liée ?`} className="rounded border border-red-500 px-3 py-1.5 text-sm text-red-300 disabled:opacity-50">Supprimer</SubmitButton>
+              </form>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {participants.map((participant) => {
+                const points = match.status !== "completed" ? 0 : match.result_type === "draw" ? 5 : participant.is_winner ? 10 : 2;
+                return <div key={participant.id} className="rounded border border-gray-800 p-2 text-sm"><p className="font-semibold">{participant.display_name_snapshot}</p><p className="text-gray-400">PV : {participant.starting_health ?? "—"} → {participant.final_health ?? "—"} · Score : {participant.score}</p><p className="text-cyan-300">Progression CSC : +{points} points</p></div>;
+              })}
+            </div>
+          </article>;
+        })}
+      </div>
+    </section>
 
     <section className={panel}><h2 className="mb-4 text-xl font-bold text-yellow-300">Demandes en attente</h2>{!pending.length && <p className="text-gray-400">Aucune demande.</p>}<div className="space-y-3">{pending.map((profile) => <div key={profile.id} className="flex flex-wrap items-center justify-between gap-3 rounded border border-gray-700 p-3"><div><p className="font-bold">{profile.display_name}</p><p className="text-xs text-gray-400">{emailById.get(profile.id)}</p></div><div className="flex gap-2"><form action={changeProfileStatus}><input type="hidden" name="userId" value={profile.id}/><input type="hidden" name="status" value="active"/><SubmitButton pendingLabel="Validation…" className="rounded bg-green-700 px-3 py-1.5 disabled:opacity-50">Valider</SubmitButton></form><form action={changeProfileStatus}><input type="hidden" name="userId" value={profile.id}/><input type="hidden" name="status" value="rejected"/><SubmitButton pendingLabel="Refus…" confirmation={`Refuser définitivement la demande de ${profile.display_name} ?`} className="rounded bg-red-700 px-3 py-1.5 disabled:opacity-50">Refuser</SubmitButton></form></div></div>)}</div></section>
 
