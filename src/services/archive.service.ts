@@ -49,8 +49,10 @@ export class ArchiveService {
     };
   }
 
-  async leaderboard() {
-    const result = await this.client.from("leaderboard").select("*").is("mode", null).order("rank_position").limit(100);
+  async leaderboard(mode: MatchMode | null = null) {
+    let query = this.client.from("leaderboard").select("*");
+    query = mode === null ? query.is("mode", null) : query.eq("mode", mode);
+    const result = await query.order("rank_position").limit(100);
     if (result.error) throw fromPostgrestError(result.error);
     return result.data ?? [];
   }

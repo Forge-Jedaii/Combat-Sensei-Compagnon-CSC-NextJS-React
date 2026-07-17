@@ -17,6 +17,7 @@ export default function PwaInstaller() {
   const [showIosHelp, setShowIosHelp] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [installed, setInstalled] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
@@ -24,11 +25,14 @@ export default function PwaInstaller() {
     }
 
     const standalone = isStandalone();
+    const installMessageDismissed = localStorage.getItem("csc:pwa-install-dismissed") === "true";
     setInstalled(standalone);
+    setDismissed(installMessageDismissed);
     setIsIos(/iPad|iPhone|iPod/.test(navigator.userAgent));
 
     const handleInstallPrompt = (event: Event) => {
       event.preventDefault();
+      if (localStorage.getItem("csc:pwa-install-dismissed") === "true") return;
       setInstallPrompt(event as InstallPromptEvent);
       setInstalled(false);
     };
@@ -45,11 +49,25 @@ export default function PwaInstaller() {
     };
   }, []);
 
-  if (installed || (!installPrompt && !isIos)) return null;
+  if (installed || dismissed || (!installPrompt && !isIos)) return null;
 
   return (
     <aside className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[100] mx-auto max-w-sm rounded-xl border border-cyan-400/50 bg-black/90 p-3 text-sm text-white shadow-2xl backdrop-blur-md" aria-label="Installation de l’application">
-      <div className="flex items-center justify-between gap-3">
+      <button
+        type="button"
+        aria-label="Masquer la proposition d’installation"
+        title="Ne plus afficher"
+        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full text-lg text-gray-400 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+        onClick={() => {
+          localStorage.setItem("csc:pwa-install-dismissed", "true");
+          setDismissed(true);
+          setInstallPrompt(null);
+          setShowIosHelp(false);
+        }}
+      >
+        ×
+      </button>
+      <div className="flex items-center justify-between gap-3 pr-6">
         <div>
           <p className="font-bold text-cyan-300">Installer CSC</p>
           <p className="text-xs text-gray-300">Accès rapide depuis votre écran d’accueil.</p>
