@@ -57,7 +57,13 @@ export default async function ClassementsPage() {
         const entries = entriesByMode.get(board.mode) ?? [];
         const ownRanking = ownRankings.find((ranking) => ranking.mode === board.mode);
         const ownPosition = data.user ? entries.find((entry) => entry.user_id === data.user.id)?.rank_position : null;
-        return <section key={board.mode ?? "global"} className={`rounded-xl border bg-black/45 p-5 ${board.tone}`}><div className="mb-4"><h2 className="text-xl font-bold">{board.title}</h2><p className="text-xs text-gray-400">{board.description}</p></div>{data.user && <OwnRanking ranking={ownRanking} position={ownPosition}/>}<RankingTable entries={entries}/></section>;
+        return <details key={board.mode ?? "global"} className={`group overflow-hidden rounded-xl border bg-black/45 ${board.tone}`}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 outline-none hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-cyan-400 [&::-webkit-details-marker]:hidden">
+            <span><span className="flex flex-wrap items-center gap-2 text-xl font-bold">{board.title}<span className="rounded-full border border-current/30 px-2 py-0.5 text-xs">{entries.length} combattant{entries.length > 1 ? "s" : ""}</span></span><span className="mt-1 block text-xs font-normal text-gray-400">{board.description}</span></span>
+            <span className="flex shrink-0 items-center gap-3"><span className="hidden text-right text-xs text-gray-400 sm:block">{data.user ? `Ma position : ${ownPosition ? `#${ownPosition}` : "—"}` : "Voir le classement"}<br/>{data.user ? `${ownRanking?.score ?? 0} points` : ""}</span><span aria-hidden="true" className="text-xl transition-transform group-open:rotate-180">⌄</span></span>
+          </summary>
+          <div className="border-t border-gray-800 p-5">{data.user && <OwnRanking ranking={ownRanking} position={ownPosition}/>}<RankingTable entries={entries}/></div>
+        </details>;
       })}
     </main>
   );

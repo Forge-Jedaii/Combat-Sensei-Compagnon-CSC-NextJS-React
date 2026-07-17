@@ -13,10 +13,15 @@ const playerHandicapsPool = [
   "🎯 Touches tête seulement",
   "👐 Deux mains obligatoires",
   "☠️ Commence avec 3 PV seulement",
-  "💔 Commence avec 3 PV seulement",
   "🔥  Double dégâts pour soi !",
   "🔄 Sabre à l’envers",
   "📢 Doit annoncer ses attaques",
+  "🛡️ Ne peut attaquer qu’après une parade",
+  "↔️ Déplacements latéraux uniquement",
+  "🎭 Doit changer de garde après chaque touche",
+  "🚫 Interdiction de reculer",
+  "⚡ Une seule attaque par échange",
+  "🔮 Doit annoncer la zone visée avant d’attaquer",
 ];
 
 export default function HandicapMode({ onBack }: { onBack?: () => void }) {
